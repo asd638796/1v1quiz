@@ -1,4 +1,6 @@
 import React, {useState, useEffect} from 'react';
+import axios from 'axios';
+
 
 interface Question {
   country: string;
@@ -6,7 +8,7 @@ interface Question {
 }
 
 
-const App= () : React.JSX.Element => {
+const Game= () : React.JSX.Element => {
   
   const [questions, setQuestions] = useState<Question[]>([]);
   const [question, setQuestion] = useState<Question>();
@@ -22,26 +24,20 @@ const App= () : React.JSX.Element => {
       setAnswer('');
     
     } 
-
-    
-    
   };
 
   useEffect(() => {
-    fetch('/questions.json')
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error('Network response was not ok');
-        }
-        return response.json();
-      })
-      .then((data) => {
-        setQuestions(data);
-        setQuestion(data[0]);
-      })
-      .catch((error) => {
-        console.error('There has been a problem with your fetch operation:', error);
-      });
+    const fetchQuestions = async () => {
+      try {
+        const response = await axios.get('/api/questions');
+        setQuestions(response.data);
+        setQuestion(response.data[0]);
+      } catch (error) {
+        console.error('Error fetching questions:', error);
+      }
+    };
+
+    fetchQuestions();
   }, []);
 
 
@@ -62,4 +58,4 @@ const App= () : React.JSX.Element => {
   )
 }
 
-export default App
+export default Game
