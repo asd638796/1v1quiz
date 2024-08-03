@@ -1,14 +1,102 @@
 [
   {
-    "country": "a",
-    "capital": "b"
+    "country": "France",
+    "capital": "Paris"
   },
   {
-    "country": "c",
-    "capital": "d"
+    "country": "Germany",
+    "capital": "Berlin"
   },
   {
-    "country": "e",
-    "capital": "f"
+    "country": "Italy",
+    "capital": "Rome"
+  },
+  {
+    "country": "Spain",
+    "capital": "Madrid"
+  },
+  {
+    "country": "United Kingdom",
+    "capital": "London"
+  },
+  {
+    "country": "Canada",
+    "capital": "Ottawa"
+  },
+  {
+    "country": "United States",
+    "capital": "Washington, D.C."
+  },
+  {
+    "country": "Mexico",
+    "capital": "Mexico City"
+  },
+  {
+    "country": "Brazil",
+    "capital": "Brasilia"
+  },
+  {
+    "country": "Argentina",
+    "capital": "Buenos Aires"
+  },
+  {
+    "country": "Russia",
+    "capital": "Moscow"
+  },
+  {
+    "country": "China",
+    "capital": "Beijing"
+  },
+  {
+    "country": "Japan",
+    "capital": "Tokyo"
+  },
+  {
+    "country": "India",
+    "capital": "New Delhi"
+  },
+  {
+    "country": "Australia",
+    "capital": "Canberra"
+  },
+  {
+    "country": "South Africa",
+    "capital": "Pretoria"
+  },
+  {
+    "country": "Egypt",
+    "capital": "Cairo"
+  },
+  {
+    "country": "Turkey",
+    "capital": "Ankara"
+  },
+  {
+    "country": "Saudi Arabia",
+    "capital": "Riyadh"
+  },
+  {
+    "country": "South Korea",
+    "capital": "Seoul"
+  },
+  {
+    "country": "Indonesia",
+    "capital": "Jakarta"
+  },
+  {
+    "country": "Vietnam",
+    "capital": "Hanoi"
+  },
+  {
+    "country": "Thailand",
+    "capital": "Bangkok"
+  },
+  {
+    "country": "Malaysia",
+    "capital": "Kuala Lumpur"
+  },
+  {
+    "country": "Singapore",
+    "capital": "Singapore"
   }
 ]
