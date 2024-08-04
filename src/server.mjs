@@ -41,7 +41,7 @@ const pool = new Pool({
 
 
 // JWT Secret
-const JWT_SECRET = 'your_secret_key';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Endpoint to save questions
 app.post('/api/save-questions', (req, res) => {
@@ -96,6 +96,8 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+
+
 // Middleware to verify JWT
 const authenticateJWT = (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
@@ -112,6 +114,19 @@ const authenticateJWT = (req, res, next) => {
     res.sendStatus(401);
   }
 };
+
+app.post('/api/logout', authenticateJWT, async (req, res) => {
+  const { username } = req.body;
+
+
+  try {
+    await pool.query('DELETE FROM users WHERE username = $1', [username]);
+    res.status(200).json({ message: 'Logout successful and user deleted' });
+  } catch (error) {
+    console.error('Error logging out:', error);
+    res.status(500).json({ error: 'Failed to log out' });
+  }
+});
 
 // Example of a protected route
 app.get('/api/protected', authenticateJWT, (req, res) => {
@@ -137,8 +152,14 @@ io.use((socket, next) => {
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.user.username);
 
-  socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.user.username);
+  socket.on('disconnect', async () => {
+    console.log('a user disconnected:', socket.user.username);
+    try {
+      await pool.query('DELETE FROM users WHERE username = $1', [socket.user.username]);
+      console.log('User deleted from database:', socket.user.username);
+    } catch (error) {
+      console.error('Error deleting user on disconnect:', error);
+    }
   });
 });
 

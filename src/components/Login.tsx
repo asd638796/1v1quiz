@@ -1,18 +1,20 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 
 const Login = (): React.JSX.Element => {
   const [username, setUsername] = useState('');
   const navigate = useNavigate();
+  const { login } = useAuth();
   const { connect } = useSocket();
 
   const handleLogin = async () => {
     try {
       const response = await axios.post('/api/login', { username });
       const { token } = response.data;
-      window.jwtToken = token;  
+      login(username, token);
       connect(token);
       navigate('/dashboard');
     } catch (error) {

@@ -1,6 +1,6 @@
 declare global {
   interface Window {
-    jwtToken: string;
+    jwtToken: string | null;
     }
   }
 
