@@ -1,6 +1,6 @@
 import dotenvx from '@dotenvx/dotenvx';
 import express from 'express';
-import bodyParser from 'body-parser';
+import cookieParser from 'cookie-parser';
 import fs from 'fs';
 import path from 'path';
 import { Server } from 'socket.io';
@@ -8,6 +8,8 @@ import http from 'http';
 import pkg from 'pg';
 import jwt from 'jsonwebtoken';
 import cors from 'cors';
+import bodyParser from 'body-parser';
+import cookie from 'cookie'
 
 dotenvx.config()
 
@@ -26,8 +28,11 @@ const io = new Server(server, {
 
 const PORT = process.env.PORT || 3001;
 
-app.use(bodyParser.json());
+app.use(cookieParser());
+app.use(bodyParser.json()); 
 app.use(express.static(path.join(path.dirname(''), 'public')));
+
+
 
 // PostgreSQL client setup using environment variables
 const pool = new Pool({
@@ -76,20 +81,24 @@ app.get('/api/questions', (req, res) => {
 app.post('/api/login', async (req, res) => {
   const { username } = req.body;
 
+ 
   try {
-    // Parameterized query to prevent SQL injection
-    const result = await pool.query(
-      'INSERT INTO users (username) VALUES ($1) ON CONFLICT (username) DO NOTHING RETURNING *',
-      [username]
-    );
+    let result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+    
+    let user;
     if (result.rows.length > 0) {
-      const user = result.rows[0];
-      // Generate JWT token
-      const token = jwt.sign({ username: user.username }, JWT_SECRET, { expiresIn: '1h' });
-      res.status(200).json({ message: 'Login successful', token, user });
+      user = result.rows[0];
     } else {
-      res.status(200).json({ message: 'User already exists' });
+      result = await pool.query('INSERT INTO users (username) VALUES ($1) RETURNING *', [username]);
+      user = result.rows[0];
     }
+
+    const token = jwt.sign({ username: user.username }, JWT_SECRET, { expiresIn: '1h' });
+    res.cookie('token', token, { httpOnly: true, secure: false, sameSite: 'Strict' }); // Set HTTP-only cookie, secure: false for localhost
+    res.status(200).json({ message: 'Login successful', username });
+  
+
+    
   } catch (error) {
     console.error('Error logging in:', error);
     res.status(500).json({ error: 'Failed to log in' });
@@ -98,9 +107,9 @@ app.post('/api/login', async (req, res) => {
 
 
 
-// Middleware to verify JWT
+
 const authenticateJWT = (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
+  const token = req.cookies.token; // Read token from cookie
 
   if (token) {
     jwt.verify(token, JWT_SECRET, (err, user) => {
@@ -115,12 +124,24 @@ const authenticateJWT = (req, res, next) => {
   }
 };
 
+
 app.post('/api/logout', authenticateJWT, async (req, res) => {
   const { username } = req.body;
-
+  
 
   try {
     await pool.query('DELETE FROM users WHERE username = $1', [username]);
+    res.clearCookie('token', { httpOnly: true, secure: false, sameSite: 'Strict' });
+
+
+   
+    const userSockets = Array.from(io.sockets.sockets.values()).filter(
+      (s) => s.username === username
+    );
+
+    userSockets.forEach((socket) => socket.disconnect(true));
+
+    console.log('user deleted via logout: ' + username);
     res.status(200).json({ message: 'Logout successful and user deleted' });
   } catch (error) {
     console.error('Error logging out:', error);
@@ -133,9 +154,13 @@ app.get('/api/protected', authenticateJWT, (req, res) => {
   res.json({ message: 'You are authenticated', user: req.user });
 });
 
-// Setup Socket.io connection with JWT authentication
+
+
 io.use((socket, next) => {
-  const token = socket.handshake.auth.token;
+  const cookieHeader = socket.request.headers.cookie;
+  const cookies = cookieHeader ? cookie.parse(cookieHeader) : {};
+
+  const token = cookies.token;
   if (token) {
     jwt.verify(token, JWT_SECRET, (err, user) => {
       if (err) {
@@ -151,15 +176,12 @@ io.use((socket, next) => {
 
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.user.username);
+  console.log('Number of active sockets:', io.sockets.sockets.size);
 
-  socket.on('disconnect', async () => {
-    console.log('a user disconnected:', socket.user.username);
-    try {
-      await pool.query('DELETE FROM users WHERE username = $1', [socket.user.username]);
-      console.log('User deleted from database:', socket.user.username);
-    } catch (error) {
-      console.error('Error deleting user on disconnect:', error);
-    }
+  
+
+  socket.on('disconnect', () => {
+    console.log('User disconnected:', socket.user.username);
   });
 });
 

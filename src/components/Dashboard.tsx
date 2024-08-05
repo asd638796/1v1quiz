@@ -8,25 +8,41 @@ import axios from 'axios';
 
 const Dashboard = (): React.JSX.Element => {
   const [selectedOption, setSelectedOption] = useState<'custom' | 'default' | null>(null);
-  const { username, token, logout } = useAuth();
+  const { username, logout } = useAuth();
   const { disconnect } = useSocket();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleBeforeUnload = async (event: BeforeUnloadEvent) => {
+      event.preventDefault(); // Standard browsers
+      await axios.post('/api/logout', { username }, { withCredentials: true });
+      disconnect();
+      logout();
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [username, disconnect, logout]);
   
 
   const handleLogout = async () => {
-    try {
-      await axios.post('/api/logout', { username }, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      disconnect();
-      logout();
-      navigate('/');
-    } catch (error) {
-      console.error('Error logging out:', error);
+    if (username) {
+      try {
+        await axios.post('/api/logout', { username }, { withCredentials: true });
+        disconnect();
+        logout();
+        navigate('/');
+      } catch (error) {
+        console.error('Error logging out:', error);
+      }
+    } else {
+      console.error('Username or token is null');
     }
   };
+  
 
   
   return (
