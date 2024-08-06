@@ -12,3 +12,97 @@
   
 }
 
+
+/* Navbar.css */
+
+
+
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #333;
+  padding: 1rem;
+  color: white;
+  position: relative;
+}
+
+.navbar-brand {
+  font-size: 1.5rem;
+}
+
+.navbar-user {
+  margin-right: 1rem;
+}
+
+.navbar-search {
+  display: flex;
+  position: relative;
+}
+
+.navbar-search input {
+  padding: 0.5rem;
+  margin-right: 0.5rem;
+}
+
+.navbar-search button {
+  padding: 0.5rem 1rem;
+}
+
+.search-results {
+  position: absolute;
+  background-color: white;
+  color: black;
+  border: 1px solid #ccc;
+  margin-top: 1rem;
+  width: 20vw;
+  z-index: 1000;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.search-results ul {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+}
+
+.search-results li {
+  padding: 0.5rem;
+  cursor: pointer;
+}
+
+.search-results li:hover {
+  background-color: #f0f0f0;
+}
+
+.invitations {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: #444;
+  color: white;
+  padding: 1rem;
+  z-index: 1000;
+  border: 1px solid #ccc;
+  margin-top: 1rem;
+}
+
+.invitation-popup {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.invitation-popup p {
+  margin: 0;
+  margin-right: 1rem;
+}
+
+.invitation-popup button {
+  margin-left: 0.5rem;
+  padding: 0.3rem 0.5rem;
+  cursor: pointer;
+}

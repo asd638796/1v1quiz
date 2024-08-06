@@ -124,6 +124,18 @@ const authenticateJWT = (req, res, next) => {
   }
 };
 
+app.get('/api/search-users', authenticateJWT, async (req, res) => {
+  const { query } = req.query;
+
+  try {
+    const result = await pool.query('SELECT id, username FROM users WHERE username ILIKE $1', [`%${query}%`]);
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.error('Error searching for users:', error);
+    res.status(500).json({ error: 'Failed to search for users' });
+  }
+});
+
 
 app.post('/api/logout', authenticateJWT, async (req, res) => {
   const { username } = req.body;
@@ -178,6 +190,14 @@ io.on('connection', (socket) => {
   console.log('A user connected:', socket.user.username);
   console.log('Number of active sockets:', io.sockets.sockets.size);
 
+  socket.on('send_invitation', ({ from, to }) => {
+    const recipientSocket = [...io.sockets.sockets.values()].find(
+      (s) => s.user.username === to
+    );
+    if (recipientSocket) {
+      recipientSocket.emit('receive_invitation', { from });
+    }
+  });
   
 
   socket.on('disconnect', () => {

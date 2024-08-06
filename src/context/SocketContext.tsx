@@ -17,7 +17,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }): Rea
     const newSocket = io('http://localhost:3001', {
       withCredentials: true,
       autoConnect: true,
-      reconnection: true,
+      reconnection: false,
       
     });
 
