@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 
 interface User {
   id: number;
@@ -12,9 +13,10 @@ const Navbar = (): React.JSX.Element => {
   const { username } = useAuth();
   const { socket } = useSocket();
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<User[]>([]); // Use User type
+  const [searchResults, setSearchResults] = useState<User[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [invitations, setInvitations] = useState<{ from: string }[]>([]);
+  const navigate = useNavigate();
 
   const debounce = (func: (...args: any[]) => void, delay: number) => {
     let timeoutId: NodeJS.Timeout;
@@ -29,7 +31,7 @@ const Navbar = (): React.JSX.Element => {
       if (query.length > 0) {
         try {
           const response = await axios.get(`/api/search-users?query=${query}`, { withCredentials: true });
-          setSearchResults(response.data.slice(0, 5)); // Limit to 5 results
+          setSearchResults(response.data.slice(0, 5));
           setShowDropdown(true);
         } catch (error) {
           console.error('Error searching for users:', error);
@@ -45,10 +47,7 @@ const Navbar = (): React.JSX.Element => {
   const handleInvite = (invitee: string) => {
     if (socket && username) {
       socket.emit('send_invitation', { from: username, to: invitee });
-      
     }
-
-    
   };
 
   useEffect(() => {
@@ -61,13 +60,21 @@ const Navbar = (): React.JSX.Element => {
         setInvitations((prevInvitations) => [...prevInvitations, invitation]);
       });
 
+      socket.on('start_game', ({ opponent, firstTurn }) => {
+        navigate('/game', { state: { opponent, firstTurn } });
+      });
+
       return () => {
         socket.off('receive_invitation');
+        socket.off('start_game');
       };
     }
-  }, [socket]);
+  }, [socket, navigate]);
 
   const handleAccept = (from: string) => {
+    if (socket && username) {
+      socket.emit('accept_invitation', { from, to: username });
+    }
     console.log(`User ${username} accepted invite from ${from}`);
     setInvitations(invitations.filter((inv) => inv.from !== from));
   };
@@ -91,7 +98,7 @@ const Navbar = (): React.JSX.Element => {
           placeholder="Search for users"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          onBlur={() => setTimeout(() => setShowDropdown(false), 100)} // Close dropdown on blur after a short delay
+          onBlur={() => setTimeout(() => setShowDropdown(false), 100)}
         />
         <button type="submit" onClick={() => handleInvite(searchQuery)}>Invite</button>
       </form>

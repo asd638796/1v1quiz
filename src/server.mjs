@@ -187,9 +187,7 @@ io.use((socket, next) => {
 });
 
 io.on('connection', (socket) => {
-  console.log('A user connected:', socket.user.username);
-  console.log('Number of active sockets:', io.sockets.sockets.size);
-
+  
   socket.on('send_invitation', ({ from, to }) => {
     const recipientSocket = [...io.sockets.sockets.values()].find(
       (s) => s.user.username === to
@@ -198,12 +196,39 @@ io.on('connection', (socket) => {
       recipientSocket.emit('receive_invitation', { from });
     }
   });
+
+  socket.on('accept_invitation', ({ from, to }) => {
+    
+    
+    const recipientSocket = [...io.sockets.sockets.values()].find(
+      (s) => s.user.username === from
+    );
+    if (recipientSocket) {
+
+      console.log(recipientSocket);
+      recipientSocket.emit('invitation_accepted', { to });
+      
+      recipientSocket.emit('start_game', { firstTurn: true, opponent: to });
+      socket.emit('start_game', { firstTurn: false, opponent: from });
+    }
+
+
+  });
   
 
-  socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.user.username);
+  socket.on('next_turn', ({ question, opponent }) => {
+    socket.broadcast.emit('next_turn', { question, opponent });
+    socket.emit('next_turn', { question, opponent });
   });
+
+  socket.on('game_over', ({ winner, loser }) => {
+    socket.emit('game_over', { winner });
+    socket.broadcast.emit('game_over', { loser });
+  });
+
+
 });
+
 
 server.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
