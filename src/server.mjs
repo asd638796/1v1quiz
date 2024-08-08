@@ -32,6 +32,8 @@ app.use(cookieParser());
 app.use(bodyParser.json()); 
 app.use(express.static(path.join(path.dirname(''), 'public')));
 
+let games = {};
+
 
 
 // PostgreSQL client setup using environment variables
@@ -186,8 +188,10 @@ io.use((socket, next) => {
   }
 });
 
+
 io.on('connection', (socket) => {
-  
+  const username = socket.user.username;
+
   socket.on('send_invitation', ({ from, to }) => {
     const recipientSocket = [...io.sockets.sockets.values()].find(
       (s) => s.user.username === to
@@ -198,37 +202,82 @@ io.on('connection', (socket) => {
   });
 
   socket.on('accept_invitation', ({ from, to }) => {
-    
-    
-    const recipientSocket = [...io.sockets.sockets.values()].find(
+    const room = `${from}-${to}`;
+    socket.join(room);
+
+    const fromSocket = [...io.sockets.sockets.values()].find(
       (s) => s.user.username === from
     );
-    if (recipientSocket) {
+    const toSocket = [...io.sockets.sockets.values()].find(
+      (s) => s.user.username === to
+    );
 
-      console.log(recipientSocket);
-      recipientSocket.emit('invitation_accepted', { to });
-      
-      recipientSocket.emit('start_game', { firstTurn: true, opponent: to });
-      socket.emit('start_game', { firstTurn: false, opponent: from });
+    if (fromSocket && toSocket) {
+      fromSocket.join(room);
+      toSocket.join(room);
+
+      fromSocket.emit('invitation_accepted', { to });
+      toSocket.emit('invitation_accepted', { from });
+
+      // Initialize game state
+      games[room] = { playerTime: 30, opponentTime: 30, isPlayerTurn: true, players: { from, to } };
+
+      // Send start_game event to the correct users
+      fromSocket.emit('start_game', { firstTurn: true, opponent: to });
+      toSocket.emit('start_game', { firstTurn: false, opponent: from });
+
+      startGameTimer(room);
     }
-
-
-  });
-  
-
-  socket.on('next_turn', ({ question, opponent }) => {
-    socket.broadcast.emit('next_turn', { question, opponent });
-    socket.emit('next_turn', { question, opponent });
   });
 
-  socket.on('game_over', ({ winner, loser }) => {
-    socket.emit('game_over', { winner });
-    socket.broadcast.emit('game_over', { loser });
+  const startGameTimer = (room) => {
+    const interval = setInterval(() => {
+      if (!games[room]) {
+        clearInterval(interval);
+        return;
+      }
+
+      if (games[room].playerTime <= 0 || games[room].opponentTime <= 0) {
+        clearInterval(interval);
+        const winner = games[room].playerTime > 0 ? games[room].players.from : games[room].players.to;
+        const loser = games[room].playerTime <= 0 ? games[room].players.from : games[room].players.to;
+        io.to(room).emit('game_over', { winner, loser });
+        delete games[room];
+      } else {
+        if (games[room].isPlayerTurn) {
+          games[room].playerTime -= 1;
+        } else {
+          games[room].opponentTime -= 1;
+        }
+
+        const fromSocket = [...io.sockets.sockets.values()].find(
+          (s) => s.user.username === games[room].players.from
+        );
+        const toSocket = [...io.sockets.sockets.values()].find(
+          (s) => s.user.username === games[room].players.to
+        );
+
+        if (fromSocket && toSocket) {
+          fromSocket.emit('timer_update', { myTime: games[room].playerTime, opponentTime: games[room].opponentTime });
+          toSocket.emit('timer_update', { myTime: games[room].opponentTime, opponentTime: games[room].playerTime });
+        }
+      }
+    }, 1000);
+  };
+
+  socket.on('next_turn', ({ question, room }) => {
+    if (!games[room]) {
+      return;
+    }
+    games[room].isPlayerTurn = !games[room].isPlayerTurn;
+    io.to(room).emit('next_turn', { question });
   });
 
-
+  socket.on('game_over', ({ room, winner, loser }) => {
+    io.to(room).emit('game_over', { winner, loser });
+    delete games[room];
+  });
 });
-
 
 server.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);

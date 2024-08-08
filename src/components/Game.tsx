@@ -9,17 +9,23 @@ interface Question {
   capital: string;
 }
 
+interface LocationState {
+  opponent: string;
+  firstTurn: boolean;
+}
+
 const Game = (): React.JSX.Element => {
   const { socket } = useSocket();
   const { username } = useAuth();
+  const location = useLocation();
   const navigate = useNavigate();
-  const [timers, setTimers] = useState({ player: 30, opponent: 30 });
+  const [timers, setTimers] = useState({ myTime: 30, opponentTime: 30 });
   const [isPlayerTurn, setIsPlayerTurn] = useState<boolean>(false);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
-  const [answer, setAnswer] = useState('');
-  const [opponent, setOpponent] = useState('');
-  const location = useLocation();
+  const [answer, setAnswer] = useState<string>('');
+  const [opponent, setOpponent] = useState<string>('');
+  const [room, setRoom] = useState<string>('');
 
   useEffect(() => {
     const fetchQuestions = async () => {
@@ -31,73 +37,56 @@ const Game = (): React.JSX.Element => {
   }, []);
 
   useEffect(() => {
-    if (socket) {
-      
-      if (location.state) {
-        const { opponent, firstTurn } = location.state;
-        setOpponent(opponent);
-        setIsPlayerTurn(firstTurn);
-      }
+    const state = location.state as LocationState; // Type casting
+    if (state) {
+      const { opponent, firstTurn } = state;
+      setOpponent(opponent);
+      setIsPlayerTurn(firstTurn);
 
-      socket.on('next_turn', ({question, opponent}) => {
-        if(opponent == username){
-          setIsPlayerTurn(true);
-          setCurrentQuestion(question);
-        }
+      const room = `${username}-${opponent}`;
+      setRoom(room);
+    }
+
+    if (socket) {
+      socket.on('timer_update', ({ myTime, opponentTime }) => {
         
+        setTimers({ myTime: myTime, opponentTime: opponentTime });
       });
 
-      socket.on('game_over', (data) => {
-        alert(`${data.winner} wins! ${data.loser} loses.`);
+      socket.on('next_turn', ({ question }) => {
+        setIsPlayerTurn((prev) => !prev);
+        setCurrentQuestion(question);
+      });
+
+      socket.on('game_over', ({ winner, loser }) => {
+        alert(`${winner} wins! ${loser} loses.`);
         navigate('/dashboard');
       });
 
       return () => {
-        socket.off('start_game');
+        socket.off('timer_update');
         socket.off('next_turn');
         socket.off('game_over');
+      
       };
     }
-  }, [socket, navigate]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTimers((prev) => {
-        const newTimers = { ...prev };
-        if (isPlayerTurn) {
-          newTimers.player = Math.max(prev.player - 1, 0);
-        } else {
-          newTimers.opponent = Math.max(prev.opponent - 1, 0);
-        }
-        return newTimers;
-      });
-      
-      if (!isPlayerTurn && timers.opponent === 0) {
-        clearInterval(interval);
-        const winner = username;
-        const loser = opponent;
-        socket?.emit('game_over', { winner, loser });
-        navigate('/dashboard');
-      }
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [isPlayerTurn, timers, socket, username, opponent, navigate]);
+  }, [socket, location.state, navigate, username]);
 
   const handleAnswer = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
     if (isPlayerTurn && answer.trim().toLowerCase() === currentQuestion?.capital.toLowerCase()) {
       const nextQuestion = questions[Math.floor(Math.random() * questions.length)];
       setAnswer('');
-      setIsPlayerTurn(false);
-      socket?.emit('next_turn', { opponent: opponent , question: nextQuestion });
+      socket?.emit('next_turn', { question: nextQuestion, room: room });
     }
   };
 
   return (
     <div className="game">
       <div className="timer">
-        <p>Your Time: {timers.player}s</p>
-        <p>{opponent}'s Time: {timers.opponent}s</p>
+        <p>Your Time: {timers.myTime}s</p>
+        <p>{opponent}'s Time: {timers.opponentTime}s</p>
       </div>
       <div className={`app-body ${!isPlayerTurn ? 'disabled' : ''}`}>
         <h2 className="app-question">{currentQuestion?.country}</h2>

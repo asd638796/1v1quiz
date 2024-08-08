@@ -41,6 +41,8 @@ const Dashboard = (): React.JSX.Element => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, [handleLogout]);
+
+  
   
   return (
     <div className="dashboard">
