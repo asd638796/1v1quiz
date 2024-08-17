@@ -9,7 +9,7 @@ interface Question {
 
 const CustomQuiz = (): React.JSX.Element => {
   const [questions, setQuestions] = useState<Question[]>([{ country: '', capital: '' }]);
-  const navigate = useNavigate();
+  
 
   const handleAddQuestion = () => {
     setQuestions([...questions, { country: '', capital: '' }]);
@@ -30,9 +30,7 @@ const CustomQuiz = (): React.JSX.Element => {
     }
   };
 
-  const handleStartGame = () => {
-    navigate('/game');
-  };
+ 
 
   return (
     <div className="custom-quiz">
@@ -55,7 +53,7 @@ const CustomQuiz = (): React.JSX.Element => {
       ))}
       <button onClick={handleAddQuestion}>Add Question</button>
       <button onClick={handleSave}>Save</button>
-      <button onClick={handleStartGame}>Start Game</button>
+      
     </div>
   );
 };

@@ -40,14 +40,12 @@ const DefaultQuiz = (): React.JSX.Element => {
         console.error('Error saving questions:', error);
     }
       
-    
-    navigate('/game');
   };
 
   return (
     <div className="default-quiz">
       <h2>Use Default Questions</h2>
-      <button onClick={handleStartGame}>Start Game</button>
+      <button onClick={handleStartGame}>Save questions</button>
     </div>
   );
 };

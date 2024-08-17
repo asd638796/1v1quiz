@@ -42,8 +42,8 @@ const Game = (): React.JSX.Element => {
       const { opponent, firstTurn } = state;
       setOpponent(opponent);
       setIsPlayerTurn(firstTurn);
-
-      const room = `${username}-${opponent}`;
+      const sortedUsernames = [username, opponent].sort();
+      const room = `${sortedUsernames[0]}-${sortedUsernames[1]}`;
       setRoom(room);
     }
 
@@ -56,6 +56,7 @@ const Game = (): React.JSX.Element => {
       socket.on('next_turn', ({ question }) => {
         setIsPlayerTurn((prev) => !prev);
         setCurrentQuestion(question);
+        console.log('turn worked');
       });
 
       socket.on('game_over', ({ winner, loser }) => {
@@ -75,10 +76,14 @@ const Game = (): React.JSX.Element => {
   const handleAnswer = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
+    
+
     if (isPlayerTurn && answer.trim().toLowerCase() === currentQuestion?.capital.toLowerCase()) {
       const nextQuestion = questions[Math.floor(Math.random() * questions.length)];
       setAnswer('');
+      
       socket?.emit('next_turn', { question: nextQuestion, room: room });
+      
     }
   };
 

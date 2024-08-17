@@ -50,34 +50,56 @@ const pool = new Pool({
 // JWT Secret
 const JWT_SECRET = process.env.JWT_SECRET;
 
-// Endpoint to save questions
-app.post('/api/save-questions', (req, res) => {
-  const questions = req.body;
-  const questionsPath = 'C:/Users/sheri/desktop/stuff/cs/1v1quiz/public/questions.json';
+app.post('/api/save-questions', async (req, res) => {
+  const { username, questions } = req.body;
 
-  fs.writeFile(questionsPath, JSON.stringify(questions, null, 2), (err) => {
-    if (err) {
-      console.error('Error saving questions:', err);
-      res.status(500).json({ error: 'Failed to save questions' });
-    } else {
-      res.status(200).json({ message: 'Questions saved successfully' });
+  try {
+    // Find the user associated with the username
+    const user = await pool.query('SELECT id FROM users WHERE username = $1', [username]);
+
+    if (user.rows.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
     }
-  });
+
+    const userId = user.rows[0].id;
+
+    // Insert the questions into the questions table
+    const queryText = 'INSERT INTO questions (user_id, country, capital) VALUES ($1, $2, $3)';
+    for (const question of questions) {
+      await pool.query(queryText, [userId, question.country, question.capital]);
+    }
+
+    res.status(200).json({ message: 'Questions saved successfully' });
+  } catch (error) {
+    console.error('Error saving questions:', error);
+    res.status(500).json({ error: 'Failed to save questions' });
+  }
 });
 
-// Endpoint to fetch questions
-app.get('/api/questions', (req, res) => {
-  const questionsPath = 'C:/Users/sheri/desktop/stuff/cs/1v1quiz/public/questions.json';
 
-  fs.readFile(questionsPath, 'utf8', (err, data) => {
-    if (err) {
-      console.error('Error reading questions:', err);
-      res.status(500).json({ error: 'Failed to fetch questions' });
-    } else {
-      res.status(200).json(JSON.parse(data));
+app.get('/api/get-questions', async (req, res) => {
+  const { username } = req.query;
+
+  try {
+    // Find the user associated with the username
+    const user = await pool.query('SELECT id FROM users WHERE username = $1', [username]);
+
+    if (user.rows.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
     }
-  });
+
+    const userId = user.rows[0].id;
+
+    // Retrieve the questions for this user
+    const questions = await pool.query('SELECT country, capital FROM questions WHERE user_id = $1', [userId]);
+
+    res.status(200).json(questions.rows);
+  } catch (error) {
+    console.error('Error fetching questions:', error);
+    res.status(500).json({ error: 'Failed to fetch questions' });
+  }
 });
+
 
 // Endpoint to handle login
 app.post('/api/login', async (req, res) => {

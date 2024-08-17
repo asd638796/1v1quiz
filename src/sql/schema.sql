@@ -5,9 +5,15 @@
 -- Connect to the quizapp database
 \connect quizapp;
 
--- Create the users table if it does not exist
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(255) UNIQUE NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS questions (
+    id SERIAL PRIMARY KEY,
+    user_id INT REFERENCES games(id) ON DELETE CASCADE, -- Associates questions with a specific user
+    country VARCHAR(255) NOT NULL,
+    capital VARCHAR(255) NOT NULL
 );
