@@ -27,14 +27,8 @@ const Game = (): React.JSX.Element => {
   const [opponent, setOpponent] = useState<string>('');
   const [room, setRoom] = useState<string>('');
 
-  useEffect(() => {
-    const fetchQuestions = async () => {
-      const response = await axios.get('/api/questions');
-      setQuestions(response.data);
-      setCurrentQuestion(response.data[0]);
-    };
-    fetchQuestions();
-  }, []);
+  
+  
 
   useEffect(() => {
     const state = location.state as LocationState; // Type casting
@@ -45,6 +39,19 @@ const Game = (): React.JSX.Element => {
       const sortedUsernames = [username, opponent].sort();
       const room = `${sortedUsernames[0]}-${sortedUsernames[1]}`;
       setRoom(room);
+      let apiUsername : string | null = '';
+      if(firstTurn){
+        apiUsername = username;
+      }else{
+        apiUsername = opponent;
+      }
+
+      const fetchQuestions = async () => {
+        const response = await axios.get('/api/get-questions', {params: {username: apiUsername,},});
+        setQuestions(response.data);
+        setCurrentQuestion(response.data[0]);
+      };
+      fetchQuestions();
     }
 
     if (socket) {

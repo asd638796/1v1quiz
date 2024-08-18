@@ -54,19 +54,12 @@ app.post('/api/save-questions', async (req, res) => {
   const { username, questions } = req.body;
 
   try {
-    // Find the user associated with the username
-    const user = await pool.query('SELECT id FROM users WHERE username = $1', [username]);
-
-    if (user.rows.length === 0) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    const userId = user.rows[0].id;
+    
 
     // Insert the questions into the questions table
-    const queryText = 'INSERT INTO questions (user_id, country, capital) VALUES ($1, $2, $3)';
+    const queryText = 'INSERT INTO questions (username, country, capital) VALUES ($1, $2, $3)';
     for (const question of questions) {
-      await pool.query(queryText, [userId, question.country, question.capital]);
+      await pool.query(queryText, [username, question.country, question.capital]);
     }
 
     res.status(200).json({ message: 'Questions saved successfully' });
@@ -81,18 +74,9 @@ app.get('/api/get-questions', async (req, res) => {
   const { username } = req.query;
 
   try {
-    // Find the user associated with the username
-    const user = await pool.query('SELECT id FROM users WHERE username = $1', [username]);
-
-    if (user.rows.length === 0) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    const userId = user.rows[0].id;
-
     // Retrieve the questions for this user
-    const questions = await pool.query('SELECT country, capital FROM questions WHERE user_id = $1', [userId]);
-
+    const questions = await pool.query('SELECT country, capital FROM questions WHERE username = $1', [username]);
+    
     res.status(200).json(questions.rows);
   } catch (error) {
     console.error('Error fetching questions:', error);
@@ -167,6 +151,7 @@ app.post('/api/logout', authenticateJWT, async (req, res) => {
 
   try {
     await pool.query('DELETE FROM users WHERE username = $1', [username]);
+    await pool.query('DELETE FROM questions WHERE username = $1', [username]);
     res.clearCookie('token', { httpOnly: true, secure: false, sameSite: 'Strict' });
 
 
@@ -213,6 +198,7 @@ io.use((socket, next) => {
 
 io.on('connection', (socket) => {
   const username = socket.user.username;
+  console.log('Number of active sockets:', io.sockets.sockets.size);
 
   socket.on('send_invitation', ({ from, to }) => {
     const recipientSocket = [...io.sockets.sockets.values()].find(
@@ -297,6 +283,7 @@ io.on('connection', (socket) => {
 
   socket.on('game_over', ({ room, winner, loser }) => {
     io.to(room).emit('game_over', { winner, loser });
+    io.in(room).socketsLeave(room);
     delete games[room];
   });
 });

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 interface Question {
   country: string;
@@ -9,7 +9,7 @@ interface Question {
 
 const CustomQuiz = (): React.JSX.Element => {
   const [questions, setQuestions] = useState<Question[]>([{ country: '', capital: '' }]);
-  
+  const { username } = useAuth();
 
   const handleAddQuestion = () => {
     setQuestions([...questions, { country: '', capital: '' }]);
@@ -23,7 +23,7 @@ const CustomQuiz = (): React.JSX.Element => {
 
   const handleSave = async () => {
     try {
-      const response = await axios.post('/api/save-questions', questions);
+      const response = await axios.post('/api/save-questions', {username, questions});
       alert(response.data.message);
     } catch (error) {
       console.error('Error saving questions:', error);

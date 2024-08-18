@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS questions (
     id SERIAL PRIMARY KEY,
-    user_id INT REFERENCES games(id) ON DELETE CASCADE, -- Associates questions with a specific user
+    username VARCHAR(255) REFERENCES users(username) ON DELETE CASCADE, -- Associates questions with a specific user
     country VARCHAR(255) NOT NULL,
     capital VARCHAR(255) NOT NULL
 );
