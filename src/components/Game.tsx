@@ -88,7 +88,6 @@ const Game = (): React.JSX.Element => {
     if (isPlayerTurn && answer.trim().toLowerCase() === currentQuestion?.capital.toLowerCase()) {
       const nextQuestion = questions[Math.floor(Math.random() * questions.length)];
       setAnswer('');
-      
       socket?.emit('next_turn', { question: nextQuestion, room: room });
       
     }

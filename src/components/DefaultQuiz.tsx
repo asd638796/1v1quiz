@@ -1,9 +1,10 @@
 import React, {useEffect, useState} from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
 
 
-const DefaultQuiz = (): React.JSX.Element => {
+const DefaultQuiz = ({ setQuizType }: { setQuizType: (type: 'custom' | 'default') => void}): React.JSX.Element => {
   
   interface Question {
     
@@ -14,8 +15,7 @@ const DefaultQuiz = (): React.JSX.Element => {
       
 
   const [questions, setQuestions] = useState<Question[]>([]);
-  const navigate = useNavigate();
-
+  const { username } = useAuth();
 
   useEffect(() => {
     const fetchDefaultQuestions = async () => {
@@ -34,8 +34,9 @@ const DefaultQuiz = (): React.JSX.Element => {
   const handleStartGame = async () => {
     
     try {
-        const response = await axios.post('/api/save-questions', questions);
+        const response = await axios.post('/api/save-questions', {questions, username});
         alert(response.data.message);
+        setQuizType('default'); 
     } catch (error) {
         console.error('Error saving questions:', error);
     }

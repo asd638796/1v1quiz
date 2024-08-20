@@ -7,7 +7,7 @@ import { Server } from 'socket.io';
 import http from 'http';
 import pkg from 'pg';
 import jwt from 'jsonwebtoken';
-import cors from 'cors';
+import { fileURLToPath } from 'url';
 import bodyParser from 'body-parser';
 import cookie from 'cookie'
 
@@ -50,40 +50,8 @@ const pool = new Pool({
 // JWT Secret
 const JWT_SECRET = process.env.JWT_SECRET;
 
-app.post('/api/save-questions', async (req, res) => {
-  const { username, questions } = req.body;
-
-  try {
-    
-
-    // Insert the questions into the questions table
-    const queryText = 'INSERT INTO questions (username, country, capital) VALUES ($1, $2, $3)';
-    for (const question of questions) {
-      await pool.query(queryText, [username, question.country, question.capital]);
-    }
-
-    res.status(200).json({ message: 'Questions saved successfully' });
-  } catch (error) {
-    console.error('Error saving questions:', error);
-    res.status(500).json({ error: 'Failed to save questions' });
-  }
-});
-
-
-app.get('/api/get-questions', async (req, res) => {
-  const { username } = req.query;
-
-  try {
-    // Retrieve the questions for this user
-    const questions = await pool.query('SELECT country, capital FROM questions WHERE username = $1', [username]);
-    
-    res.status(200).json(questions.rows);
-  } catch (error) {
-    console.error('Error fetching questions:', error);
-    res.status(500).json({ error: 'Failed to fetch questions' });
-  }
-});
-
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Endpoint to handle login
 app.post('/api/login', async (req, res) => {
@@ -99,6 +67,19 @@ app.post('/api/login', async (req, res) => {
     } else {
       result = await pool.query('INSERT INTO users (username) VALUES ($1) RETURNING *', [username]);
       user = result.rows[0];
+    }
+
+    // Check if the user has any questions, if not insert default questions
+    const questionsCheck = await pool.query('SELECT * FROM questions WHERE username = $1', [username]);
+    if (questionsCheck.rows.length === 0) {
+      
+      const questionsPath = path.join(__dirname, '../public/default.json');
+      const defaultQuestions = JSON.parse(fs.readFileSync(questionsPath, 'utf8'));
+
+      const insertQuery = 'INSERT INTO questions (username, country, capital) VALUES ($1, $2, $3)';
+      for (const question of defaultQuestions) {
+        await pool.query(insertQuery, [username, question.country, question.capital]);
+      }
     }
 
     const token = jwt.sign({ username: user.username }, JWT_SECRET, { expiresIn: '1h' });
@@ -131,6 +112,52 @@ const authenticateJWT = (req, res, next) => {
     res.sendStatus(401);
   }
 };
+
+
+app.post('/api/save-questions', authenticateJWT, async (req, res) => {
+  const { username, questions } = req.body;
+
+  try {
+    // Start a transaction to ensure atomicity
+    await pool.query('BEGIN');
+
+    // Delete existing questions for the user
+    const deleteQuery = 'DELETE FROM questions WHERE username = $1';
+    await pool.query(deleteQuery, [username]);
+
+    // Insert the new questions into the questions table
+    const insertQuery = 'INSERT INTO questions (username, country, capital) VALUES ($1, $2, $3)';
+    for (const question of questions) {
+      await pool.query(insertQuery, [username, question.country, question.capital]);
+    }
+
+    // Commit the transaction
+    await pool.query('COMMIT');
+
+    res.status(200).json({ message: 'Questions saved successfully' });
+  } catch (error) {
+    // Rollback the transaction in case of an error
+    await pool.query('ROLLBACK');
+    console.error('Error saving questions:', error);
+    res.status(500).json({ error: 'Failed to save questions' });
+  }
+});
+
+
+app.get('/api/get-questions', authenticateJWT, async (req, res) => {
+  const { username } = req.query;
+
+  try {
+    // Retrieve the questions for this user
+    const questions = await pool.query('SELECT country, capital FROM questions WHERE username = $1', [username]);
+    
+    res.status(200).json(questions.rows);
+  } catch (error) {
+    console.error('Error fetching questions:', error);
+    res.status(500).json({ error: 'Failed to fetch questions' });
+  }
+});
+
 
 app.get('/api/search-users', authenticateJWT, async (req, res) => {
   const { query } = req.query;
@@ -210,7 +237,8 @@ io.on('connection', (socket) => {
   });
 
   socket.on('accept_invitation', ({ from, to }) => {
-    const room = `${from}-${to}`;
+    const sortedUsernames = [from, to].sort();
+    const room = `${sortedUsernames[0]}-${sortedUsernames[1]}`;
     socket.join(room);
 
     const fromSocket = [...io.sockets.sockets.values()].find(

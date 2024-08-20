@@ -9,6 +9,7 @@ import axios from 'axios';
 
 const Dashboard = (): React.JSX.Element => {
   const [selectedOption, setSelectedOption] = useState<'custom' | 'default' | null>(null);
+  const [quizType, setQuizType] = useState<'custom' | 'default' | null>('default');
   const { username, logout } = useAuth();
   const { disconnect } = useSocket();
   const navigate = useNavigate();
@@ -48,11 +49,12 @@ const Dashboard = (): React.JSX.Element => {
     <div className="dashboard">
       <Navbar />
       <h2>Select Quiz Type</h2>
+      <p>Current Quiz: {quizType}</p>
       <button onClick={() => setSelectedOption('custom')}>Create Custom Quiz</button>
       <button onClick={() => setSelectedOption('default')}>Use Default Quiz</button>
       <button onClick={handleLogout}>Logout</button>
-      {selectedOption === 'custom' && <CustomQuiz />}
-      {selectedOption === 'default' && <DefaultQuiz />}
+      {selectedOption === 'custom' && <CustomQuiz setQuizType={setQuizType} />}
+      {selectedOption === 'default' && <DefaultQuiz setQuizType={setQuizType} />}
     </div>
   );
 };

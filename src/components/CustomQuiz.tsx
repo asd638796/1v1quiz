@@ -7,7 +7,7 @@ interface Question {
   capital: string;
 }
 
-const CustomQuiz = (): React.JSX.Element => {
+const CustomQuiz = ({ setQuizType }: { setQuizType: (type: 'custom' | 'default') => void}): React.JSX.Element => {
   const [questions, setQuestions] = useState<Question[]>([{ country: '', capital: '' }]);
   const { username } = useAuth();
 
@@ -25,6 +25,7 @@ const CustomQuiz = (): React.JSX.Element => {
     try {
       const response = await axios.post('/api/save-questions', {username, questions});
       alert(response.data.message);
+      setQuizType('custom'); 
     } catch (error) {
       console.error('Error saving questions:', error);
     }
