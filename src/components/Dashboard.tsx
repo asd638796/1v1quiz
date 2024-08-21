@@ -30,21 +30,6 @@ const Dashboard = (): React.JSX.Element => {
   }, [username, disconnect, logout, navigate]);
 
 
-  useEffect(() => {
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      event.preventDefault(); // Standard browsers
-      handleLogout(); // Call handleLogout to ensure proper cleanup
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, [handleLogout]);
-
-  
-  
   return (
     <div className="dashboard">
       <Navbar />

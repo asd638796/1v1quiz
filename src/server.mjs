@@ -171,6 +171,18 @@ app.get('/api/search-users', authenticateJWT, async (req, res) => {
   }
 });
 
+app.get('/api/get-user', authenticateJWT, (req, res) => {
+  
+  console.log(req.user.username);
+
+  if (req.user) {
+    res.status(200).json({ username: req.user.username });
+    
+  } else {
+    res.status(401).json({ error: 'Not authenticated' });
+  }
+});
+
 
 app.post('/api/logout', authenticateJWT, async (req, res) => {
   const { username } = req.body;
@@ -197,10 +209,6 @@ app.post('/api/logout', authenticateJWT, async (req, res) => {
   }
 });
 
-// Example of a protected route
-app.get('/api/protected', authenticateJWT, (req, res) => {
-  res.json({ message: 'You are authenticated', user: req.user });
-});
 
 
 
@@ -226,6 +234,13 @@ io.use((socket, next) => {
 io.on('connection', (socket) => {
   const username = socket.user.username;
   console.log('Number of active sockets:', io.sockets.sockets.size);
+
+
+  // Handle disconnection
+  socket.on('disconnect', () => {
+    console.log(`User disconnected: ${username}`);
+    console.log('Number of active sockets after disconnect:', io.sockets.sockets.size);
+  });
 
   socket.on('send_invitation', ({ from, to }) => {
     const recipientSocket = [...io.sockets.sockets.values()].find(

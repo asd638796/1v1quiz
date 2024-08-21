@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { useAuth } from './AuthContext';
 
 interface SocketContextType {
   socket: Socket | null;
@@ -11,47 +12,35 @@ const SocketContext = createContext<SocketContextType | undefined>(undefined);
 
 export const SocketProvider = ({ children }: { children: React.ReactNode }): React.JSX.Element => {
   const [socket, setSocket] = useState<Socket | null>(null);
+  const { username } = useAuth();
 
-  const connect = () => {
-    
-    const newSocket = io('http://localhost:3001', {
-      withCredentials: true,
-      autoConnect: true,
-      reconnection: false,
-      
-    });
+  useEffect(() => {
+    if (username && !socket) {  
+      // Only connect if user is authenticated and socket is not already connected
+      const newSocket = io('http://localhost:3001', {
+        withCredentials: true,
+        autoConnect: true,
+      });
 
-    newSocket.on('connect', () => {
-      console.log('Connected to server');
-    });
+      newSocket.on('connect', () => {
+        console.log('Connected to server');
+      });
 
-    newSocket.on('disconnect', () => {
-      console.log('Disconnected from server');
-    });
+      newSocket.on('disconnect', () => {
+        console.log('Disconnected from server');
+      });
 
-    newSocket.on('reconnect', (attempt) => {
-      console.log('Reconnected to server', attempt);
-    });
+      setSocket(newSocket);
 
-    newSocket.on('reconnect_attempt', (attempt) => {
-      console.log('Reconnection attempt', attempt);
-    });
-
-    newSocket.on('reconnect_failed', () => {
-      console.log('Reconnection failed');
-    });
-
-    setSocket(newSocket);
-  };
-
-  const disconnect = () => {
-    socket?.disconnect();
-    
-    setSocket(null);
-  };
+      return () => {
+        newSocket.disconnect();
+        setSocket(null);
+      };
+    }
+  }, [username]);  // Remove socket from the dependencies array
 
   return (
-    <SocketContext.Provider value={{ socket, connect, disconnect }}>
+    <SocketContext.Provider value={{ socket, connect: () => {}, disconnect: () => {} }}>
       {children}
     </SocketContext.Provider>
   );

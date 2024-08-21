@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import axios from 'axios';
 
 interface AuthContextType {
   username: string | null;
@@ -8,15 +9,19 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({ children }: { children: ReactNode }): React.JSX.Element => {
+export const AuthProvider = ({ children }: { children: React.ReactNode }): React.JSX.Element => {
+  
   const [username, setUsername] = useState<string | null>(null);
+  
 
   const login = (username: string) => {
     setUsername(username);
+    
   };
 
   const logout = () => {
     setUsername(null);
+      
   };
 
   return (
