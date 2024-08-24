@@ -60,8 +60,8 @@ const Navbar = (): React.JSX.Element => {
         setInvitations((prevInvitations) => [...prevInvitations, invitation]);
       });
 
-      socket.on('start_game', ({ opponent, firstTurn }) => {
-        navigate('/game', { state: { opponent, firstTurn } });
+      socket.on('start_game', ({ room }) => {
+        navigate(`/game?room=${room}`);
       });
 
       return () => {

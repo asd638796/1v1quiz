@@ -209,6 +209,26 @@ app.post('/api/logout', authenticateJWT, async (req, res) => {
   }
 });
 
+app.get('/api/game-state', authenticateJWT, (req, res) => {
+  const { room } = req.query;
+
+  // Check if the game exists for the given room
+  if (games[room]) {
+    const gameState = {
+      myTime: games[room].playerTime,
+      opponentTime: games[room].opponentTime,
+      isPlayerTurn: games[room].isPlayerTurn,
+      question: games[room].question,
+      players: games[room].players,
+    };
+    res.status(200).json(gameState);
+  } else {
+    res.status(404).json({ error: 'Game not found' });
+  }
+});
+
+
+
 
 
 
@@ -271,56 +291,98 @@ io.on('connection', (socket) => {
       toSocket.emit('invitation_accepted', { from });
 
       // Initialize game state
-      games[room] = { playerTime: 30, opponentTime: 30, isPlayerTurn: true, players: { from, to } };
+      games[room] = { playerTime: 30, opponentTime: 30, isPlayerTurn: from, players: { from, to }, question:'', };
 
       // Send start_game event to the correct users
-      fromSocket.emit('start_game', { firstTurn: true, opponent: to });
-      toSocket.emit('start_game', { firstTurn: false, opponent: from });
+      fromSocket.emit('start_game', { room });
+      toSocket.emit('start_game', { room });
 
-      startGameTimer(room);
+      startGameTimer(room, from);
     }
   });
 
-  const startGameTimer = (room) => {
-    const interval = setInterval(() => {
-      if (!games[room]) {
-        clearInterval(interval);
-        return;
-      }
-
-      if (games[room].playerTime <= 0 || games[room].opponentTime <= 0) {
-        clearInterval(interval);
-        const winner = games[room].playerTime > 0 ? games[room].players.from : games[room].players.to;
-        const loser = games[room].playerTime <= 0 ? games[room].players.from : games[room].players.to;
-        io.to(room).emit('game_over', { winner, loser });
-        delete games[room];
+  const startGameTimer = async (room, username) => {
+    try {
+      // Fetch questions directly from the database
+      const result = await pool.query('SELECT country, capital FROM questions WHERE username = $1', [username]);
+      const questions = result.rows;
+  
+      if (questions.length > 0) {
+        const initialQuestion = questions[Math.floor(Math.random() * questions.length)];
+  
+        games[room].question = initialQuestion;
+        // Start the timer logic...
+        const interval = setInterval(() => {
+          if (!games[room]) {
+            clearInterval(interval);
+            return;
+          }
+  
+          if (games[room].playerTime <= 0 || games[room].opponentTime <= 0) {
+            clearInterval(interval);
+            const winner = games[room].playerTime > 0 ? games[room].players.from : games[room].players.to;
+            const loser = games[room].playerTime <= 0 ? games[room].players.from : games[room].players.to;
+            io.to(room).emit('game_over', { winner, loser });
+            delete games[room];
+          } else {
+            if (games[room].isPlayerTurn) {
+              games[room].playerTime -= 1;
+            } else {
+              games[room].opponentTime -= 1;
+            }
+  
+            const fromSocket = [...io.sockets.sockets.values()].find(
+              (s) => s.user.username === games[room].players.from
+            );
+            const toSocket = [...io.sockets.sockets.values()].find(
+              (s) => s.user.username === games[room].players.to
+            );
+  
+            if (fromSocket && toSocket) {
+              fromSocket.emit('timer_update', { myTime: games[room].playerTime, opponentTime: games[room].opponentTime });
+              toSocket.emit('timer_update', { myTime: games[room].opponentTime, opponentTime: games[room].playerTime });
+            }
+          }
+        }, 1000);
       } else {
-        if (games[room].isPlayerTurn) {
-          games[room].playerTime -= 1;
-        } else {
-          games[room].opponentTime -= 1;
-        }
-
-        const fromSocket = [...io.sockets.sockets.values()].find(
-          (s) => s.user.username === games[room].players.from
-        );
-        const toSocket = [...io.sockets.sockets.values()].find(
-          (s) => s.user.username === games[room].players.to
-        );
-
-        if (fromSocket && toSocket) {
-          fromSocket.emit('timer_update', { myTime: games[room].playerTime, opponentTime: games[room].opponentTime });
-          toSocket.emit('timer_update', { myTime: games[room].opponentTime, opponentTime: games[room].playerTime });
-        }
+        console.error('No questions found for user');
       }
-    }, 1000);
+    } catch (error) {
+      console.error('Error initializing game:', error);
+    }
   };
+  
+  socket.on('accept_invitation', async ({ from, to }) => {
+    const sortedUsernames = [from, to].sort();
+    const room = `${sortedUsernames[0]}-${sortedUsernames[1]}`;
+    socket.join(room);
+  
+    const fromSocket = [...io.sockets.sockets.values()].find(
+      (s) => s.user.username === from
+    );
+    const toSocket = [...io.sockets.sockets.values()].find(
+      (s) => s.user.username === to
+    );
+  
+    if (fromSocket && toSocket) {
+      fromSocket.join(room);
+      toSocket.join(room);
+  
+      fromSocket.emit('invitation_accepted', { to });
+      toSocket.emit('invitation_accepted', { from });
+  
+      // Initialize the game and start the timer
+      await startGameTimer(room, from);
+    }
+  });
+  
 
   socket.on('next_turn', ({ question, room }) => {
     if (!games[room]) {
       return;
     }
     games[room].isPlayerTurn = !games[room].isPlayerTurn;
+    games[room].question = question;
     io.to(room).emit('next_turn', { question });
   });
 
