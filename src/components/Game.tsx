@@ -15,7 +15,7 @@ const Game = (): React.JSX.Element => {
   const location = useLocation();
   const navigate = useNavigate();
   const [timers, setTimers] = useState({ myTime: 30, opponentTime: 30 });
-  const [isPlayerTurn, setIsPlayerTurn] = useState<boolean>(false);
+  const [isPlayerTurn, setIsPlayerTurn] = useState<string | null>('');
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
   const [answer, setAnswer] = useState<string>('');
   const [opponent, setOpponent] = useState<string>('');
@@ -25,17 +25,17 @@ const Game = (): React.JSX.Element => {
     const query = new URLSearchParams(location.search);
     const roomFromUrl = query.get('room');
 
+
     if (roomFromUrl) {
       setRoom(roomFromUrl);
-
+      
       // Fetch game state from the server
       const fetchGameState = async () => {
         try {
           const response = await axios.get('/api/game-state', { params: { room: roomFromUrl } });
           const { myTime, opponentTime, isPlayerTurn, question, players } = response.data;
-          
           setTimers({ myTime, opponentTime });
-          setIsPlayerTurn(isPlayerTurn === username); // Check if it's the user's turn
+          setIsPlayerTurn(isPlayerTurn); // Check if it's the user's turn
           setCurrentQuestion(question);
           setOpponent(players.from === username ? players.to : players.from); // Set opponent's name
         } catch (error) {
@@ -52,13 +52,14 @@ const Game = (): React.JSX.Element => {
   }, [location.search, navigate, username]);
 
   useEffect(() => {
+    
     if (socket) {
       socket.on('timer_update', ({ myTime, opponentTime }) => {
-        setTimers({ myTime, opponentTime });
+        setTimers({ myTime, opponentTime }); //the problem is that player and opponent are different from their respective povs, so timers need to be updated accordingly, fix this next time
       });
 
-      socket.on('next_turn', ({ question }) => {
-        setIsPlayerTurn((prev) => !prev);
+      socket.on('next_turn', ({ question, isPlayerTurn }) => {
+        setIsPlayerTurn(isPlayerTurn);
         setCurrentQuestion(question);
       });
 
@@ -78,7 +79,7 @@ const Game = (): React.JSX.Element => {
   const handleAnswer = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (isPlayerTurn && answer.trim().toLowerCase() === currentQuestion?.capital.toLowerCase()) {
+    if (isPlayerTurn === username && answer.trim().toLowerCase() === currentQuestion?.capital.toLowerCase()) {
       const nextQuestion = currentQuestion; // You will need to determine the next question logic
       setAnswer('');
       socket?.emit('next_turn', { question: nextQuestion, room });
@@ -91,7 +92,7 @@ const Game = (): React.JSX.Element => {
         <p>Your Time: {timers.myTime}s</p>
         <p>{opponent}'s Time: {timers.opponentTime}s</p>
       </div>
-      <div className={`app-body ${!isPlayerTurn ? 'disabled' : ''}`}>
+      <div className={`app-body ${!(isPlayerTurn === username) ? 'disabled' : ''}`}>
         <h2 className="app-question">{currentQuestion?.country}</h2>
         <form className="app-form" onSubmit={handleAnswer}>
           <input type="text" value={answer} onChange={(e) => setAnswer(e.target.value)} disabled={!isPlayerTurn} />

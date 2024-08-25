@@ -271,7 +271,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('accept_invitation', ({ from, to }) => {
+  socket.on('accept_invitation', async ({ from, to }) => {
     const sortedUsernames = [from, to].sort();
     const room = `${sortedUsernames[0]}-${sortedUsernames[1]}`;
     socket.join(room);
@@ -290,27 +290,31 @@ io.on('connection', (socket) => {
       fromSocket.emit('invitation_accepted', { to });
       toSocket.emit('invitation_accepted', { from });
 
+      // Fetch questions directly from the database
+      const result = await pool.query('SELECT country, capital FROM questions WHERE username = $1', [username]);
+      const questions = result.rows;  
+      const initialQuestion = questions[Math.floor(Math.random() * questions.length)];
+
       // Initialize game state
-      games[room] = { playerTime: 30, opponentTime: 30, isPlayerTurn: from, players: { from, to }, question:'', };
+      games[room] = { playerTime: 30, 
+                      opponentTime: 30, 
+                      isPlayerTurn: from, 
+                      players: { from, to }, 
+                      question:initialQuestion, 
+                      questions: questions };
 
       // Send start_game event to the correct users
       fromSocket.emit('start_game', { room });
       toSocket.emit('start_game', { room });
 
-      startGameTimer(room, from);
+      startGameTimer(room);
     }
   });
 
-  const startGameTimer = async (room, username) => {
+  const startGameTimer = async (room) => {
     try {
-      // Fetch questions directly from the database
-      const result = await pool.query('SELECT country, capital FROM questions WHERE username = $1', [username]);
-      const questions = result.rows;
-  
-      if (questions.length > 0) {
-        const initialQuestion = questions[Math.floor(Math.random() * questions.length)];
-  
-        games[room].question = initialQuestion;
+      if (!games[room]) {
+        
         // Start the timer logic...
         const interval = setInterval(() => {
           if (!games[room]) {
@@ -325,23 +329,15 @@ io.on('connection', (socket) => {
             io.to(room).emit('game_over', { winner, loser });
             delete games[room];
           } else {
-            if (games[room].isPlayerTurn) {
+            if (games[room].isPlayerTurn === games[room].players.from) { 
               games[room].playerTime -= 1;
             } else {
               games[room].opponentTime -= 1;
-            }
+            } 
+
+            io.to(room).emit('timer_update', { myTime: games[room].playerTime, opponentTime: games[room].opponentTime }); //the problem is that player and opponent are different from their respective povs, so timers need to be updated accordingly, fix this next time
   
-            const fromSocket = [...io.sockets.sockets.values()].find(
-              (s) => s.user.username === games[room].players.from
-            );
-            const toSocket = [...io.sockets.sockets.values()].find(
-              (s) => s.user.username === games[room].players.to
-            );
-  
-            if (fromSocket && toSocket) {
-              fromSocket.emit('timer_update', { myTime: games[room].playerTime, opponentTime: games[room].opponentTime });
-              toSocket.emit('timer_update', { myTime: games[room].opponentTime, opponentTime: games[room].playerTime });
-            }
+            
           }
         }, 1000);
       } else {
@@ -375,15 +371,26 @@ io.on('connection', (socket) => {
       await startGameTimer(room, from);
     }
   });
-  
 
-  socket.on('next_turn', ({ question, room }) => {
+  
+  socket.on('next_turn', ({ room }) => {
     if (!games[room]) {
       return;
     }
-    games[room].isPlayerTurn = !games[room].isPlayerTurn;
-    games[room].question = question;
-    io.to(room).emit('next_turn', { question });
+  
+    // Toggle the turn
+    const currentTurn = games[room].isPlayerTurn;
+    const nextTurn = currentTurn === games[room].players.from ? games[room].players.to : games[room].players.from;
+  
+    // Pick a new random question from the stored list
+    const newQuestion = games[room].questions[Math.floor(Math.random() * games[room].questions.length)];
+  
+    // Update the game state
+    games[room].isPlayerTurn = nextTurn;
+    games[room].question = newQuestion;
+  
+    // Emit the updated turn and question to all clients in the room
+    io.to(room).emit('next_turn', { question: newQuestion, isPlayerTurn: nextTurn });
   });
 
   socket.on('game_over', ({ room, winner, loser }) => {
