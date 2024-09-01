@@ -173,7 +173,7 @@ app.get('/api/search-users', authenticateJWT, async (req, res) => {
 
 app.get('/api/get-user', authenticateJWT, (req, res) => {
   
-  console.log(req.user.username);
+
 
   if (req.user) {
     res.status(200).json({ username: req.user.username });
@@ -215,8 +215,7 @@ app.get('/api/game-state', authenticateJWT, (req, res) => {
   // Check if the game exists for the given room
   if (games[room]) {
     const gameState = {
-      myTime: games[room].playerTime,
-      opponentTime: games[room].opponentTime,
+      timers: games[room].timers,
       isPlayerTurn: games[room].isPlayerTurn,
       question: games[room].question,
       players: games[room].players,
@@ -256,6 +255,26 @@ io.on('connection', (socket) => {
   console.log('Number of active sockets:', io.sockets.sockets.size);
 
 
+  socket.on('join_room', ({ room, username }) => {
+    socket.join(room);
+
+    // If needed, send the current game state to the rejoined socket
+    const game = games[room];
+    if (game) {
+      socket.emit('timer_update', {
+        from: game.players.from,
+        to: game.players.to,
+        timers: game.timers,
+      });
+      socket.emit('next_turn', {
+        question: game.question,
+        isPlayerTurn: game.isPlayerTurn,
+      });
+    }
+
+    console.log(`${username} rejoined room ${room}`);
+  });
+
   // Handle disconnection
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${username}`);
@@ -274,7 +293,7 @@ io.on('connection', (socket) => {
   socket.on('accept_invitation', async ({ from, to }) => {
     const sortedUsernames = [from, to].sort();
     const room = `${sortedUsernames[0]}-${sortedUsernames[1]}`;
-    socket.join(room);
+  
 
     const fromSocket = [...io.sockets.sockets.values()].find(
       (s) => s.user.username === from
@@ -284,8 +303,7 @@ io.on('connection', (socket) => {
     );
 
     if (fromSocket && toSocket) {
-      fromSocket.join(room);
-      toSocket.join(room);
+      
 
       fromSocket.emit('invitation_accepted', { to });
       toSocket.emit('invitation_accepted', { from });
@@ -296,12 +314,18 @@ io.on('connection', (socket) => {
       const initialQuestion = questions[Math.floor(Math.random() * questions.length)];
 
       // Initialize game state
-      games[room] = { playerTime: 30, 
-                      opponentTime: 30, 
-                      isPlayerTurn: from, 
-                      players: { from, to }, 
-                      question:initialQuestion, 
-                      questions: questions };
+      games[room] = {
+        timers: {
+          [from]: 30, // Timer for 'from' player
+          [to]: 30,   // Timer for 'to' player
+        },
+        isPlayerTurn: from,  // Start with 'from' player
+        players: { from, to }, 
+        question: initialQuestion,
+        questions: questions
+      };
+
+      console.log(games[room]);
 
       // Send start_game event to the correct users
       fromSocket.emit('start_game', { room });
@@ -313,7 +337,10 @@ io.on('connection', (socket) => {
 
   const startGameTimer = async (room) => {
     try {
-      if (!games[room]) {
+      if (games[room]) {
+        const { players, timers } = games[room];  // Ensure that players and timers exist
+        const from = players.from;
+        const to = players.to;
         
         // Start the timer logic...
         const interval = setInterval(() => {
@@ -322,31 +349,32 @@ io.on('connection', (socket) => {
             return;
           }
   
-          if (games[room].playerTime <= 0 || games[room].opponentTime <= 0) {
+          if (timers[from] <= 0 || timers[to] <= 0) {
             clearInterval(interval);
-            const winner = games[room].playerTime > 0 ? games[room].players.from : games[room].players.to;
-            const loser = games[room].playerTime <= 0 ? games[room].players.from : games[room].players.to;
+            const winner = timers[from] > 0 ? from : to;
+            const loser = timers[from] <= 0 ? from : to;
             io.to(room).emit('game_over', { winner, loser });
             delete games[room];
           } else {
-            if (games[room].isPlayerTurn === games[room].players.from) { 
-              games[room].playerTime -= 1;
+            if (games[room].isPlayerTurn === from) {
+              timers[from] -= 1;
             } else {
-              games[room].opponentTime -= 1;
-            } 
-
-            io.to(room).emit('timer_update', { myTime: games[room].playerTime, opponentTime: games[room].opponentTime }); //the problem is that player and opponent are different from their respective povs, so timers need to be updated accordingly, fix this next time
+              timers[to] -= 1;
+            }
   
-            
+            io.to(room).emit('timer_update', {
+              from, to, timers: games[room].timers,
+            });
           }
         }, 1000);
       } else {
-        console.error('No questions found for user');
+        console.error('Game state not initialized');
       }
     } catch (error) {
       console.error('Error initializing game:', error);
     }
   };
+
   
   socket.on('accept_invitation', async ({ from, to }) => {
     const sortedUsernames = [from, to].sort();

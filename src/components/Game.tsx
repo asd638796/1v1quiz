@@ -21,60 +21,82 @@ const Game = (): React.JSX.Element => {
   const [opponent, setOpponent] = useState<string>('');
   const [room, setRoom] = useState<string>('');
 
-  useEffect(() => {
+  // Use a loading state to handle the initial socket null value
+  const [loading, setLoading] = useState(true);
+
+  const handleSocketConnect = async (socket:any) => {
     const query = new URLSearchParams(location.search);
     const roomFromUrl = query.get('room');
 
-
     if (roomFromUrl) {
       setRoom(roomFromUrl);
-      
-      // Fetch game state from the server
-      const fetchGameState = async () => {
-        try {
-          const response = await axios.get('/api/game-state', { params: { room: roomFromUrl } });
-          const { myTime, opponentTime, isPlayerTurn, question, players } = response.data;
-          setTimers({ myTime, opponentTime });
-          setIsPlayerTurn(isPlayerTurn); // Check if it's the user's turn
-          setCurrentQuestion(question);
-          setOpponent(players.from === username ? players.to : players.from); // Set opponent's name
-        } catch (error) {
-          console.error('Failed to fetch game state:', error);
-          navigate('/dashboard'); // Redirect if game state fetch fails
-        }
-      };
 
-      fetchGameState();
+      try {
+        const response = await axios.get('/api/game-state', { params: { room: roomFromUrl } });
+        const { timers, isPlayerTurn, question, players } = response.data;
+
+        if (username === players.from) {
+          setTimers({ myTime: timers[players.from], opponentTime: timers[players.to] });
+        } else {
+          setTimers({ myTime: timers[players.to], opponentTime: timers[players.from] });
+        }
+
+        setIsPlayerTurn(isPlayerTurn);
+        setCurrentQuestion(question);
+        setOpponent(players.from === username ? players.to : players.from);
+
+        // Rejoin the room on the server side
+        socket.emit('join_room', { room: roomFromUrl, username });
+      } catch (error) {
+        console.error('Failed to fetch game state:', error);
+        navigate('/dashboard'); // Redirect if game state fetch fails
+      }
     } else {
       console.error('No room found in URL');
       navigate('/dashboard'); // Redirect if no room found in URL
     }
-  }, [location.search, navigate, username]);
+  };
 
   useEffect(() => {
-    
-    if (socket) {
-      socket.on('timer_update', ({ myTime, opponentTime }) => {
-        setTimers({ myTime, opponentTime }); //the problem is that player and opponent are different from their respective povs, so timers need to be updated accordingly, fix this next time
+    if (!socket) {
+      setLoading(true);
+      return;
+    }else{
+      handleSocketConnect(socket);
+      setLoading(false);
+    }
+  
+    if (!loading) {
+      socket.on('timer_update', ({ from, to, timers }) => {
+        if (username === from) {
+          setTimers({ myTime: timers[from], opponentTime: timers[to] });
+        } else {
+          setTimers({ myTime: timers[to], opponentTime: timers[from] });
+        }
       });
-
+  
       socket.on('next_turn', ({ question, isPlayerTurn }) => {
         setIsPlayerTurn(isPlayerTurn);
         setCurrentQuestion(question);
       });
-
+  
       socket.on('game_over', ({ winner, loser }) => {
         alert(`${winner} wins! ${loser} loses.`);
         navigate('/dashboard');
       });
-
+  
       return () => {
         socket.off('timer_update');
         socket.off('next_turn');
         socket.off('game_over');
       };
     }
-  }, [socket, navigate]);
+  }, [socket, loading, navigate, username, room]);
+  
+
+  if (loading) {
+    return <div>Loading...</div>;  // Show a loading state while the socket is connecting
+  }
 
   const handleAnswer = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
