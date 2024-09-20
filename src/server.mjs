@@ -34,6 +34,8 @@ app.use(express.static(path.join(path.dirname(''), 'public')));
 
 let games = {};
 
+const activeUsers = {}; // Map username to Set of socket IDs
+const disconnectTimeouts = {}; // Map username to timeout IDs
 
 
 // PostgreSQL client setup using environment variables
@@ -172,8 +174,6 @@ app.get('/api/search-users', authenticateJWT, async (req, res) => {
 });
 
 app.get('/api/get-user', authenticateJWT, (req, res) => {
-  
-
 
   if (req.user) {
     res.status(200).json({ username: req.user.username });
@@ -246,15 +246,28 @@ io.use((socket, next) => {
     });
   } else {
     next(new Error('Authentication error'));
-  }
+  } 
 });
 
 
 io.on('connection', (socket) => {
+
   const username = socket.user.username;
-  console.log('Number of active sockets:', io.sockets.sockets.size);
 
+  console.log(games);
 
+  if (disconnectTimeouts[username]) {
+    clearTimeout(disconnectTimeouts[username]);
+    delete disconnectTimeouts[username];
+  }
+
+  if (!activeUsers[username]) {
+    activeUsers[username] = new Set();
+  }
+  activeUsers[username].add(socket.id);
+
+  console.log(activeUsers);
+  
   socket.on('join_room', ({ room, username }) => {
     socket.join(room);
 
@@ -272,13 +285,41 @@ io.on('connection', (socket) => {
       });
     }
 
-    console.log(`${username} rejoined room ${room}`);
+    console.log(`${username} joined room ${room}`);
   });
 
-  // Handle disconnection
   socket.on('disconnect', () => {
-    console.log(`User disconnected: ${username}`);
-    console.log('Number of active sockets after disconnect:', io.sockets.sockets.size);
+    // Remove socket ID from the user's set of sockets
+
+    
+    
+    if (activeUsers[username]) {
+      activeUsers[username].delete(socket.id);
+
+      // If the user has no more active sockets, start the timeout
+      if (activeUsers[username].size === 0) {
+        disconnectTimeouts[username] = setTimeout(async () => {
+
+          
+          try {
+            // Perform cleanup logic
+            await pool.query('DELETE FROM users WHERE username = $1', [username]);
+            await pool.query('DELETE FROM questions WHERE username = $1', [username]);
+
+            // Remove user from activeUsers
+            delete activeUsers[username];
+            delete disconnectTimeouts[username];
+
+            // Notify other players or clean up game state if necessary
+            // For example, if the user was in a game, end the game or declare the opponent as the winner
+
+            console.log(`User ${username} deleted after disconnect timeout.`);
+          } catch (error) {
+            console.error('Error during disconnect cleanup:', error);
+          }
+        }, 10000); // 10-second timeout
+      }
+    }
   });
 
   socket.on('send_invitation', ({ from, to }) => {
