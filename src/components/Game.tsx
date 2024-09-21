@@ -24,6 +24,7 @@ const Game = (): React.JSX.Element => {
   // Use a loading state to handle the initial socket null value
   const [loading, setLoading] = useState(true);
 
+
   const handleSocketConnect = async (socket:any) => {
     const query = new URLSearchParams(location.search);
     const roomFromUrl = query.get('room');
@@ -43,7 +44,11 @@ const Game = (): React.JSX.Element => {
 
         setIsPlayerTurn(isPlayerTurn);
         setCurrentQuestion(question);
+     
         setOpponent(players.from === username ? players.to : players.from);
+
+       
+        
 
         // Rejoin the room on the server side
         socket.emit('join_room', { room: roomFromUrl, username });
@@ -67,11 +72,19 @@ const Game = (): React.JSX.Element => {
     }
   
     if (!loading) {
-      socket.on('timer_update', ({ from, to, timers }) => {
-        if (username === from) {
-          setTimers({ myTime: timers[from], opponentTime: timers[to] });
-        } else {
-          setTimers({ myTime: timers[to], opponentTime: timers[from] });
+      socket.on('timer_update', ({ timers }) => {
+      
+        if(username !== null){
+          const myTime = timers[username];
+
+          const opponentUsername = Object.keys(timers).find((user) => user !== username);
+          if(opponentUsername){
+            const opponentTime = timers[opponentUsername];
+            setTimers({ myTime: myTime, opponentTime: opponentTime });
+          }
+          
+          
+          
         }
       });
   
@@ -89,6 +102,7 @@ const Game = (): React.JSX.Element => {
         socket.off('timer_update');
         socket.off('next_turn');
         socket.off('game_over');
+        socket.off('skip_turn');
       };
     }
   }, [socket, loading, navigate, username, room]);
@@ -102,9 +116,15 @@ const Game = (): React.JSX.Element => {
     e.preventDefault();
 
     if (isPlayerTurn === username && answer.trim().toLowerCase() === currentQuestion?.capital.toLowerCase()) {
-      const nextQuestion = currentQuestion; // You will need to determine the next question logic
+      
       setAnswer('');
-      socket?.emit('next_turn', { question: nextQuestion, room });
+      socket?.emit('next_turn');
+    }
+  };
+
+  const handleSkip = () => {
+    if (isPlayerTurn === username) {
+      socket?.emit('skip_turn', { room });
     }
   };
 
@@ -117,8 +137,23 @@ const Game = (): React.JSX.Element => {
       <div className={`app-body ${!(isPlayerTurn === username) ? 'disabled' : ''}`}>
         <h2 className="app-question">{currentQuestion?.country}</h2>
         <form className="app-form" onSubmit={handleAnswer}>
-          <input type="text" value={answer} onChange={(e) => setAnswer(e.target.value)} disabled={!isPlayerTurn} />
-          <button type="submit" disabled={!isPlayerTurn}>Enter</button>
+          <input
+            type="text"
+            value={answer}
+            onChange={(e) => setAnswer(e.target.value)}
+            disabled={isPlayerTurn !== username}
+          />
+          <button type="submit" disabled={isPlayerTurn !== username}>
+            Enter
+          </button>
+        
+          <button
+            type="button"
+            onClick={handleSkip}
+            disabled={isPlayerTurn !== username}
+          >
+            Skip
+          </button>
         </form>
       </div>
     </div>

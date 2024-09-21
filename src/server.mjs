@@ -187,6 +187,9 @@ app.get('/api/get-user', authenticateJWT, (req, res) => {
 app.post('/api/logout', authenticateJWT, async (req, res) => {
   const { username } = req.body;
   
+  
+  
+
 
   try {
     await pool.query('DELETE FROM users WHERE username = $1', [username]);
@@ -195,12 +198,23 @@ app.post('/api/logout', authenticateJWT, async (req, res) => {
 
 
    
-    const userSockets = Array.from(io.sockets.sockets.values()).filter(
-      (s) => s.username === username
-    );
+    if (activeUsers[username]) {
+      activeUsers[username].forEach((socketId) => {
+        const socket = io.sockets.sockets.get(socketId);
+        if (socket) {
+          socket.disconnect(true);
+        }
+      });
 
-    userSockets.forEach((socket) => socket.disconnect(true));
+      if (disconnectTimeouts[username]) {
+        clearTimeout(disconnectTimeouts[username]);
+        delete disconnectTimeouts[username];
+      }
+    
 
+      // Remove the user's entry from activeUsers
+      delete activeUsers[username];
+    }
     console.log('user deleted via logout: ' + username);
     res.status(200).json({ message: 'Logout successful and user deleted' });
   } catch (error) {
@@ -271,26 +285,13 @@ io.on('connection', (socket) => {
   socket.on('join_room', ({ room, username }) => {
     socket.join(room);
 
-    // If needed, send the current game state to the rejoined socket
-    const game = games[room];
-    if (game) {
-      socket.emit('timer_update', {
-        from: game.players.from,
-        to: game.players.to,
-        timers: game.timers,
-      });
-      socket.emit('next_turn', {
-        question: game.question,
-        isPlayerTurn: game.isPlayerTurn,
-      });
-    }
+    
 
     console.log(`${username} joined room ${room}`);
   });
 
   socket.on('disconnect', () => {
-    // Remove socket ID from the user's set of sockets
-
+    
     
     
     if (activeUsers[username]) {
@@ -366,7 +367,7 @@ io.on('connection', (socket) => {
         questions: questions
       };
 
-      console.log(games[room]);
+    
 
       // Send start_game event to the correct users
       fromSocket.emit('start_game', { room });
@@ -402,9 +403,10 @@ io.on('connection', (socket) => {
             } else {
               timers[to] -= 1;
             }
-  
+            
+            console.log(games[room]);
             io.to(room).emit('timer_update', {
-              from, to, timers: games[room].timers,
+              timers: games[room].timers,
             });
           }
         }, 1000);
@@ -446,7 +448,8 @@ io.on('connection', (socket) => {
     if (!games[room]) {
       return;
     }
-  
+    
+    
     // Toggle the turn
     const currentTurn = games[room].isPlayerTurn;
     const nextTurn = currentTurn === games[room].players.from ? games[room].players.to : games[room].players.from;
@@ -462,12 +465,61 @@ io.on('connection', (socket) => {
     io.to(room).emit('next_turn', { question: newQuestion, isPlayerTurn: nextTurn });
   });
 
+    socket.on('skip_turn', ({ room }) => {
+      if (!games[room]) {
+        return;
+      }
+      
+      const { players, timers } = games[room];  // Ensure that players and timers exist
+        const from = players.from;
+        const to = players.to;
+
+      
+      // Decrease the player's time by 1 second
+      const currentTurn = games[room].isPlayerTurn;
+      if (currentTurn === from) {
+        timers[from] -= 2;
+        if (timers[from] < 0) timers[from] = 0;
+      } else {
+        timers[to] -= 2;
+        if (timers[to] < 0) timers[to] = 0;
+      }
+
+      io.to(room).emit('timer_update', {
+        timers: {
+          timers
+        },
+      });
+    
+    
+    
+      // Toggle the turn
+      const nextTurn = currentTurn === from ? to : from;
+    
+      games[room].isPlayerTurn = nextTurn;
+    
+      // Fetch the next question for the next player
+      const newQuestion = games[room].questions[Math.floor(Math.random() * games[room].questions.length)];
+
+      games[room].question = newQuestion;
+      
+      
+
+      // Emit the updated game state to all clients in the room
+      io.to(room).emit('next_turn', { question: newQuestion, isPlayerTurn: nextTurn });
+    
+      
+  });
+
   socket.on('game_over', ({ room, winner, loser }) => {
     io.to(room).emit('game_over', { winner, loser });
     io.in(room).socketsLeave(room);
     delete games[room];
   });
+
 });
+
+
 
 server.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
