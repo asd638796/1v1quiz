@@ -25,6 +25,8 @@ const Game = (): React.JSX.Element => {
   const [loading, setLoading] = useState(true);
 
 
+  console.log(opponent); //is returning the correct opponent
+
   const handleSocketConnect = async (socket:any) => {
     const query = new URLSearchParams(location.search);
     const roomFromUrl = query.get('room');
@@ -73,18 +75,15 @@ const Game = (): React.JSX.Element => {
   
     if (!loading) {
       socket.on('timer_update', ({ timers }) => {
-      
+        
+        
         if(username !== null){
           const myTime = timers[username];
-
-          const opponentUsername = Object.keys(timers).find((user) => user !== username);
-          if(opponentUsername){
-            const opponentTime = timers[opponentUsername];
-            setTimers({ myTime: myTime, opponentTime: opponentTime });
-          }
+          const opponentTime = timers[opponent];
           
+          setTimers({ myTime: myTime, opponentTime: opponentTime });
           
-          
+        
         }
       });
   
@@ -105,7 +104,7 @@ const Game = (): React.JSX.Element => {
         socket.off('skip_turn');
       };
     }
-  }, [socket, loading, navigate, username, room]);
+  }, [socket, loading, navigate, username, room, opponent]);
   
 
   if (loading) {
