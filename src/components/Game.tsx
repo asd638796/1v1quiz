@@ -9,6 +9,24 @@ interface Question {
   capital: string;
 }
 
+interface NextTurnData {
+  question: Question | null;
+  isPlayerTurn: string | null;
+}
+
+interface GameOverData {
+  winner: string;
+  loser: string;
+}
+
+interface Timers {
+  [username: string]: number;
+}
+
+interface TimerUpdateData {
+  timers: Timers;
+}
+
 const Game = (): React.JSX.Element => {
   const { socket } = useSocket();
   const { username } = useAuth();
@@ -20,12 +38,11 @@ const Game = (): React.JSX.Element => {
   const [answer, setAnswer] = useState<string>('');
   const [opponent, setOpponent] = useState<string>('');
   const [room, setRoom] = useState<string>('');
-
-  // Use a loading state to handle the initial socket null value
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
 
-  console.log(opponent); //is returning the correct opponent
+  
+  
 
   const handleSocketConnect = async (socket:any) => {
     const query = new URLSearchParams(location.search);
@@ -37,23 +54,45 @@ const Game = (): React.JSX.Element => {
       try {
         const response = await axios.get('/api/game-state', { params: { room: roomFromUrl } });
         const { timers, isPlayerTurn, question, players } = response.data;
+        
+        
+        
+        let opponentUsername: string;
 
         if (username === players.from) {
           setTimers({ myTime: timers[players.from], opponentTime: timers[players.to] });
+          opponentUsername = players.to;
         } else {
           setTimers({ myTime: timers[players.to], opponentTime: timers[players.from] });
+          opponentUsername = players.from;
         }
 
         setIsPlayerTurn(isPlayerTurn);
         setCurrentQuestion(question);
-     
-        setOpponent(players.from === username ? players.to : players.from);
+        setOpponent(opponentUsername);
 
-       
+        socket.emit('join_room', { room: roomFromUrl, username });
         
 
-        // Rejoin the room on the server side
-        socket.emit('join_room', { room: roomFromUrl, username });
+        socket.on('timer_update', ({ timers }: TimerUpdateData) => {
+          if(username !== null){
+            const myTime = timers[username];
+            const opponentTime = timers[opponentUsername];
+            setTimers({ myTime: myTime, opponentTime: opponentTime });
+          }
+        });
+    
+        socket.on('next_turn', ({ question, isPlayerTurn }: NextTurnData) => {
+          setIsPlayerTurn(isPlayerTurn);
+          setCurrentQuestion(question);
+        });
+    
+        socket.on('game_over', ({ winner, loser }: GameOverData) => {
+          alert(`${winner} wins! ${loser} loses.`);
+          navigate('/dashboard');
+        });
+
+
       } catch (error) {
         console.error('Failed to fetch game state:', error);
         navigate('/dashboard'); // Redirect if game state fetch fails
@@ -69,33 +108,13 @@ const Game = (): React.JSX.Element => {
       setLoading(true);
       return;
     }else{
-      handleSocketConnect(socket);
       setLoading(false);
+      handleSocketConnect(socket);
+      
     }
   
     if (!loading) {
-      socket.on('timer_update', ({ timers }) => {
-        
-        
-        if(username !== null){
-          const myTime = timers[username];
-          const opponentTime = timers[opponent];
-          
-          setTimers({ myTime: myTime, opponentTime: opponentTime });
-          
-        
-        }
-      });
-  
-      socket.on('next_turn', ({ question, isPlayerTurn }) => {
-        setIsPlayerTurn(isPlayerTurn);
-        setCurrentQuestion(question);
-      });
-  
-      socket.on('game_over', ({ winner, loser }) => {
-        alert(`${winner} wins! ${loser} loses.`);
-        navigate('/dashboard');
-      });
+      
   
       return () => {
         socket.off('timer_update');
@@ -104,7 +123,7 @@ const Game = (): React.JSX.Element => {
         socket.off('skip_turn');
       };
     }
-  }, [socket, loading, navigate, username, room, opponent]);
+  }, [socket, navigate, username]);
   
 
   if (loading) {
@@ -117,7 +136,7 @@ const Game = (): React.JSX.Element => {
     if (isPlayerTurn === username && answer.trim().toLowerCase() === currentQuestion?.capital.toLowerCase()) {
       
       setAnswer('');
-      socket?.emit('next_turn');
+      socket?.emit('next_turn', {room});
     }
   };
 

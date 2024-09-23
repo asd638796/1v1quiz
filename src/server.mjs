@@ -486,9 +486,8 @@ io.on('connection', (socket) => {
       }
 
       io.to(room).emit('timer_update', {
-        timers: {
-          timers
-        },
+        timers: timers
+        
       });
     
     
