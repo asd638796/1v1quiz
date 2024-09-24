@@ -323,16 +323,16 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('send_invitation', ({ from, to }) => {
+  socket.on('send_invitation', ({ from, to, settings }) => {
     const recipientSocket = [...io.sockets.sockets.values()].find(
       (s) => s.user.username === to
     );
     if (recipientSocket) {
-      recipientSocket.emit('receive_invitation', { from });
+      recipientSocket.emit('receive_invitation', { from, settings });
     }
   });
 
-  socket.on('accept_invitation', async ({ from, to }) => {
+  socket.on('accept_invitation', async ({ from, to, settings }) => {
     const sortedUsernames = [from, to].sort();
     const room = `${sortedUsernames[0]}-${sortedUsernames[1]}`;
   
@@ -358,13 +358,14 @@ io.on('connection', (socket) => {
       // Initialize game state
       games[room] = {
         timers: {
-          [from]: 30, // Timer for 'from' player
-          [to]: 30,   // Timer for 'to' player
+          [from]: settings.gameDuration, // Timer for 'from' player
+          [to]: settings.gameDuration,   // Timer for 'to' player
         },
         isPlayerTurn: from,  // Start with 'from' player
         players: { from, to }, 
         question: initialQuestion,
-        questions: questions
+        questions: questions,
+        settings
       };
 
     
@@ -403,8 +404,7 @@ io.on('connection', (socket) => {
             } else {
               timers[to] -= 1;
             }
-            
-            console.log(games[room]);
+          
             io.to(room).emit('timer_update', {
               timers: games[room].timers,
             });
@@ -470,18 +470,18 @@ io.on('connection', (socket) => {
         return;
       }
       
-      const { players, timers } = games[room];  // Ensure that players and timers exist
-        const from = players.from;
-        const to = players.to;
+      const { players, timers, settings, isPlayerTurn } = games[room];  // Ensure that players and timers exist
+      const from = players.from;
+      const to = players.to;
+      const skipPenalty = settings.skipPenalty;
+      const currentTurn = isPlayerTurn;
 
-      
-      // Decrease the player's time by 1 second
-      const currentTurn = games[room].isPlayerTurn;
+
       if (currentTurn === from) {
-        timers[from] -= 2;
+        timers[from] -= skipPenalty;
         if (timers[from] < 0) timers[from] = 0;
       } else {
-        timers[to] -= 2;
+        timers[to] -= skipPenalty;
         if (timers[to] < 0) timers[to] = 0;
       }
 
@@ -489,23 +489,14 @@ io.on('connection', (socket) => {
         timers: timers
         
       });
-    
-    
-    
       // Toggle the turn
       const nextTurn = currentTurn === from ? to : from;
     
       games[room].isPlayerTurn = nextTurn;
     
-      // Fetch the next question for the next player
-      const newQuestion = games[room].questions[Math.floor(Math.random() * games[room].questions.length)];
-
-      games[room].question = newQuestion;
-      
-      
 
       // Emit the updated game state to all clients in the room
-      io.to(room).emit('next_turn', { question: newQuestion, isPlayerTurn: nextTurn });
+      io.to(room).emit('next_turn', { question: games[room].question, isPlayerTurn: nextTurn });
     
       
   });

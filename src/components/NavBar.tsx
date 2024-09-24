@@ -9,13 +9,26 @@ interface User {
   username: string;
 }
 
-const Navbar = (): React.JSX.Element => {
+interface NavbarProps {
+  gameDuration: number;
+  skipPenalty: number;
+}
+
+interface Invitation {
+  from: string;
+  settings: {
+    gameDuration: number;
+    skipPenalty: number;
+  };
+}
+
+const Navbar = ({gameDuration, skipPenalty}: NavbarProps): React.JSX.Element => {
   const { username } = useAuth();
   const { socket } = useSocket();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<User[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [invitations, setInvitations] = useState<{ from: string }[]>([]);
+  const [invitations, setInvitations] = useState<Invitation[]>([]);
   const navigate = useNavigate();
 
   const debounce = (func: (...args: any[]) => void, delay: number) => {
@@ -46,7 +59,11 @@ const Navbar = (): React.JSX.Element => {
 
   const handleInvite = (invitee: string) => {
     if (socket && username) {
-      socket.emit('send_invitation', { from: username, to: invitee });
+      const settings = {
+        gameDuration, 
+        skipPenalty
+      }
+      socket.emit('send_invitation', { from: username, to: invitee, settings });
     }
   };
 
@@ -56,7 +73,7 @@ const Navbar = (): React.JSX.Element => {
 
   useEffect(() => {
     if (socket) {
-      socket.on('receive_invitation', (invitation) => {
+      socket.on('receive_invitation', (invitation:Invitation) => {
         setInvitations((prevInvitations) => [...prevInvitations, invitation]);
       });
 
@@ -73,7 +90,11 @@ const Navbar = (): React.JSX.Element => {
 
   const handleAccept = (from: string) => {
     if (socket && username) {
-      socket.emit('accept_invitation', { from, to: username });
+      const invitation = invitations.find((inv) => inv.from === from);
+      
+      if(invitation){
+        socket.emit('accept_invitation', { from, to: username, settings: invitation.settings, });
+      }
     }
     console.log(`User ${username} accepted invite from ${from}`);
     setInvitations(invitations.filter((inv) => inv.from !== from));
