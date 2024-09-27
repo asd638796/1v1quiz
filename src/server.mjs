@@ -65,7 +65,7 @@ app.post('/api/login', async (req, res) => {
     
     let user;
     if (result.rows.length > 0) {
-      user = result.rows[0];
+      return res.status(400).json({ error: 'Username taken. Try a different one' });
     } else {
       result = await pool.query('INSERT INTO users (username) VALUES ($1) RETURNING *', [username]);
       user = result.rows[0];

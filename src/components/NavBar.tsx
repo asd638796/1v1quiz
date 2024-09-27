@@ -106,43 +106,95 @@ const Navbar = ({gameDuration, skipPenalty}: NavbarProps): React.JSX.Element => 
   };
 
   return (
-    <nav className="navbar">
-      <div className="navbar-brand">
-        <h1>Quiz App</h1>
+    <nav className="bg-blue-600 text-white px-4 py-3 flex items-center justify-between">
+      {/* Navbar Brand */}
+      <div className="flex items-center">
+        <h1 className="text-xl font-bold">Quiz App</h1>
       </div>
-      <div className="navbar-user">
-        <p>Logged in as: {username}</p>
+
+      {/* Navbar User Info */}
+      <div className="hidden md:flex items-center">
+        <p className="mr-6">Logged in as: {username}</p>
       </div>
-      <form className="navbar-search" onSubmit={(e) => e.preventDefault()}>
-        <input
-          type="text"
-          placeholder="Search for users"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          onBlur={() => setTimeout(() => setShowDropdown(false), 100)}
-        />
-        <button type="submit" onClick={() => handleInvite(searchQuery)}>Invite</button>
-      </form>
-      {showDropdown && searchResults.length > 0 && (
-        <div className="search-results">
-          <ul>
-            {searchResults.map((user) => (
-              <li key={user.id}>{user.username}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {invitations.length > 0 && (
-        <div className="invitations">
-          {invitations.map((inv, index) => (
-            <div key={index} className="invitation-popup">
-              <p>{inv.from} has invited you</p>
-              <button onClick={() => handleAccept(inv.from)}>Accept</button>
-              <button onClick={() => handleDecline(inv.from)}>Decline</button>
+
+      {/* Navbar Search and Invitations */}
+      <div className="flex items-center space-x-4">
+        {/* Search Form */}
+        <form
+          className="relative"
+          onSubmit={(e) => e.preventDefault()}
+        >
+          <input
+            type="text"
+            placeholder="Search for users"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onBlur={() => setTimeout(() => setShowDropdown(false), 100)}
+            className="rounded-full px-4 py-2 text-black"
+          />
+          <button
+            type="submit"
+            onClick={() => {handleInvite(searchQuery); setShowDropdown(false);}}
+            
+            className="absolute right-0 top-0 mt-1 mr-1 px-3 py-1 bg-green-500 text-white rounded-full hover:bg-green-600"
+          >
+            Invite
+          </button>
+
+          {/* Search Results Dropdown */}
+          {showDropdown && searchResults.length > 0 && (
+            <div className="absolute mt-2 w-full bg-white rounded-md shadow-lg z-10 text-black">
+              <ul className="py-2">
+                {searchResults.map((user) => (
+                  <li
+                    key={user.id}
+                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                    onClick={() => {
+                      setSearchQuery(user.username);
+                      setShowDropdown(false);
+                    }}
+                  >
+                    {user.username}
+                  </li>
+                ))}
+              </ul>
             </div>
-          ))}
+          )}
+        </form>
+
+        {/* Invitations */}
+        <div className="relative">
+          <div
+            className={`text-sm rounded-full h-6 w-6 flex items-center justify-center ${
+              invitations.length > 0 ? 'bg-red-500' : 'bg-transparent'
+            }`}
+          >
+            {invitations.length > 0 ? invitations.length : ''}
+          </div>
+
+          {invitations.length > 0 && (
+            <div className="absolute right-0 mt-6 w-64 bg-white rounded-md shadow-lg z-20">
+              {invitations.map((inv, index) => (
+                <div key={index} className="p-4 border-b last:border-b-0">
+                  <p className="text-black mb-2">{inv.from} has invited you</p>
+                  <button
+                    onClick={() => handleAccept(inv.from)}
+                    className="mr-2 px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                  >
+                    Accept
+                  </button>
+                  <button
+                    onClick={() => handleDecline(inv.from)}
+                    className="px-3 py-1 bg-gray-300 text-black rounded hover:bg-gray-400"
+                  >
+                    Decline
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </nav>
   );
 };

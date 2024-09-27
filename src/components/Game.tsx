@@ -147,35 +147,59 @@ const Game = (): React.JSX.Element => {
   };
 
   return (
-    <div className="game">
-      <div className="timer">
-        <p>Your Time: {timers.myTime}s</p>
-        <p>{opponent}'s Time: {timers.opponentTime}s</p>
-      </div>
-      <div className={`app-body ${!(isPlayerTurn === username) ? 'disabled' : ''}`}>
-        <h2 className="app-question">{currentQuestion?.country}</h2>
-        <form className="app-form" onSubmit={handleAnswer}>
-          <input
-            type="text"
-            value={answer}
-            onChange={(e) => setAnswer(e.target.value)}
-            disabled={isPlayerTurn !== username}
-          />
-          <button type="submit" disabled={isPlayerTurn !== username}>
-            Enter
-          </button>
-        
-          <button
-            type="button"
-            onClick={handleSkip}
-            disabled={isPlayerTurn !== username}
-          >
-            Skip
-          </button>
-        </form>
+    <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center">
+      {/* Game Container */}
+      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+        {/* Timer Section */}
+        <div className="flex justify-between mb-6">
+          <p className="text-gray-700 font-semibold">Your Time: {timers.myTime}s</p>
+          <p className="text-gray-700 font-semibold">{opponent}'s Time: {timers.opponentTime}s</p>
+        </div>
+  
+        {/* Game Body */}
+        <div
+          className={`${
+            isPlayerTurn !== username ? 'opacity-50 pointer-events-none' : ''
+          }`}
+        >
+          <h2 className="text-2xl font-bold text-center mb-4">
+            {currentQuestion?.country}
+          </h2>
+          <form className="flex flex-col items-center" onSubmit={handleAnswer}>
+            <input
+              type="text"
+              value={answer}
+              onChange={(e) => setAnswer(e.target.value)}
+              disabled={isPlayerTurn !== username}
+              className="w-full p-3 mb-4 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <div className="flex space-x-4">
+              <button
+                type="submit"
+                disabled={isPlayerTurn !== username}
+                className={`px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 ${
+                  isPlayerTurn !== username ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+              >
+                Enter
+              </button>
+              <button
+                type="button"
+                onClick={handleSkip}
+                disabled={isPlayerTurn !== username}
+                className={`px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 ${
+                  isPlayerTurn !== username ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+              >
+                Skip
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );
+  
 };
 
 export default Game;

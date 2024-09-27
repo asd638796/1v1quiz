@@ -37,38 +37,55 @@ const Dashboard = (): React.JSX.Element => {
       
       <Navbar gameDuration={gameDuration} skipPenalty={skipPenalty} />
 
-      <button onClick={handleLogout}>Logout</button>
+      <button
+        onClick={handleLogout}
+        className="mt-4 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+      >
+        Logout
+      </button>
       
-      <div className="question-settings">
-      <h2>Question Settings</h2>
-        <label>
+      <div className="question-settings bg-white p-6 rounded-md shadow-md mt-6">
+        <h2 className="text-xl font-bold mb-4">Question Settings</h2>
+        <label className="block mb-2">
           Game Duration (seconds):
           <input
             type="number"
             value={gameDuration}
             onChange={(e) => setGameDuration(Number(e.target.value))}
             min="30"
+            className="mt-1 p-2 border border-gray-300 rounded w-full"
           />
         </label>
-        <label>
+        <label className="block mb-2">
           Skip Penalty (seconds):
           <input
             type="number"
             value={skipPenalty}
             onChange={(e) => setSkipPenalty(Number(e.target.value))}
             min="0"
+            className="mt-1 p-2 border border-gray-300 rounded w-full"
           />
         </label>
       </div>
+
       
-      <div className="game-settings">
-        <h2>Game Settings</h2>
-        <button onClick={() => setSelectedOption('custom')}>Create Custom Quiz</button>
-        <button onClick={() => setSelectedOption('default')}>Use Default Quiz</button>
+      <div className="game-settings bg-white p-6 rounded-md shadow-md mt-6">
+        <h2 className="text-xl font-bold mb-4">Game Settings</h2>
+        <button
+          onClick={() => setSelectedOption('custom')}
+          className="mr-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+        >
+          Create Custom Quiz
+        </button>
+        <button
+          onClick={() => setSelectedOption('default')}
+          className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+        >
+          Use Default Quiz
+        </button>
         {selectedOption === 'custom' && <CustomQuiz setQuizType={setQuizType} />}
         {selectedOption === 'default' && <DefaultQuiz setQuizType={setQuizType} />}
       </div>
-
     </div>
 
   );
