@@ -41,7 +41,7 @@
     
 
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-800">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
         <div className="flex bg-white p-12 rounded-lg shadow-md w-full max-w-2xl items-stretch mb-8">
 
           <input

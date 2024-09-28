@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import CustomQuiz from './CustomQuiz';
 import DefaultQuiz from './DefaultQuiz';
 import { useNavigate } from 'react-router-dom';
@@ -8,10 +8,11 @@ import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 
 const Dashboard = (): React.JSX.Element => {
-  const [selectedOption, setSelectedOption] = useState<'custom' | 'default' | null>(null);
   const [quizType, setQuizType] = useState<'custom' | 'default' | null>('default');
+  const [selectedQuizType, setSelectedQuizType] = useState<'custom' | 'default' | null>('default')
   const [gameDuration, setGameDuration] = useState<number>(30); 
   const [skipPenalty, setSkipPenalty] = useState<number>(2);
+
   const { username, logout } = useAuth();
   const { disconnect } = useSocket();
   const navigate = useNavigate();
@@ -39,52 +40,119 @@ const Dashboard = (): React.JSX.Element => {
 
       <button
         onClick={handleLogout}
-        className="mt-4 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+        className="ml-4 mt-4 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
       >
         Logout
       </button>
       
-      <div className="question-settings bg-white p-6 rounded-md shadow-md mt-6">
-        <h2 className="text-xl font-bold mb-4">Question Settings</h2>
-        <label className="block mb-2">
-          Game Duration (seconds):
-          <input
-            type="number"
-            value={gameDuration}
-            onChange={(e) => setGameDuration(Number(e.target.value))}
-            min="30"
-            className="mt-1 p-2 border border-gray-300 rounded w-full"
-          />
-        </label>
-        <label className="block mb-2">
-          Skip Penalty (seconds):
-          <input
-            type="number"
-            value={skipPenalty}
-            onChange={(e) => setSkipPenalty(Number(e.target.value))}
-            min="0"
-            className="mt-1 p-2 border border-gray-300 rounded w-full"
-          />
-        </label>
-      </div>
-
-      
-      <div className="game-settings bg-white p-6 rounded-md shadow-md mt-6">
+      <div className="flex flex-col items-center justify-center question-settings bg-white p-6 rounded-md  mt-10">
         <h2 className="text-xl font-bold mb-4">Game Settings</h2>
-        <button
-          onClick={() => setSelectedOption('custom')}
-          className="mr-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-        >
-          Create Custom Quiz
-        </button>
-        <button
-          onClick={() => setSelectedOption('default')}
-          className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-        >
-          Use Default Quiz
-        </button>
-        {selectedOption === 'custom' && <CustomQuiz setQuizType={setQuizType} />}
-        {selectedOption === 'default' && <DefaultQuiz setQuizType={setQuizType} />}
+
+       
+          {/* Game Duration Input */}
+          <div className="mb-4 flex items-center">
+            <label className="w-48 text-gray-700 font-bold" htmlFor="gameDuration">
+              Game Duration (seconds):
+            </label>
+            <input
+              id="gameDuration"
+              name="gameDuration"
+              type="number"
+              min="15"
+              value={Number(gameDuration).toString()}
+              onChange={(e) => {
+                let value = e.target.value;
+          
+                // Remove any non-digit characters
+                value = value.replace(/\D/g, '');
+          
+                // Remove leading zeros unless the value is '0'
+                if (value.length > 1) {
+                  value = value.replace(/^0+/, '');
+                }
+          
+                // If value is empty, set skipPenalty to 0
+                if (value === '') {
+                  setGameDuration(0);
+                } else {
+                  // Parse the value to an integer
+                  let numValue = parseInt(value, 10);
+          
+                  // Clamp the value between 0 and 30
+                  numValue = Math.max(0, Math.min(numValue, 120));
+          
+                  setGameDuration(numValue);
+                }
+              }}
+              className="flex-grow mt-1 p-2 border border-gray-300 rounded"
+            />
+          </div>
+
+          {/* Skip Penalty Input */}
+          <div className="mb-4 flex items-center">
+            <label className="w-48 text-gray-700 font-bold" htmlFor="skipPenalty">
+              Skip Penalty (seconds):
+            </label>
+            <input
+              id="skipPenalty"
+              name="skipPenalty"
+              type="number"
+              value={Number(skipPenalty).toString()}
+              onChange={(e) => {
+                let value = e.target.value;
+          
+                // Remove any non-digit characters
+                value = value.replace(/\D/g, '');
+          
+                // Remove leading zeros unless the value is '0'
+                if (value.length > 1) {
+                  value = value.replace(/^0+/, '');
+                }
+          
+                // If value is empty, set skipPenalty to 0
+                if (value === '') {
+                  setSkipPenalty(0);
+                } else {
+                  // Parse the value to an integer
+                  let numValue = parseInt(value, 10);
+          
+                  // Clamp the value between 0 and 30
+                  numValue = Math.max(0, Math.min(numValue, 30));
+          
+                  setSkipPenalty(numValue);
+                }
+              }}
+              className="flex-grow mt-1 p-2 border border-gray-300 rounded"
+            />
+          </div>
+
+        {/* Buttons for Custom and Default Questions */}
+        <div className="mt-6">
+          <button
+            onClick={() => {setSelectedQuizType('custom')}}
+            className={`mr-4 px-4 py-2 rounded ${
+              selectedQuizType === 'custom'
+                ? 'bg-green-500 hover:bg-green-600'
+                : 'bg-blue-500 hover:bg-blue-600'
+            } text-white transition-colors duration-200`}
+          >
+            Create Custom Questions
+          </button>
+          <button
+            onClick={() => {setSelectedQuizType('default')}}
+            className={`px-4 py-2 rounded ${
+              selectedQuizType === 'default'
+                ? 'bg-green-500 hover:bg-green-600'
+                : 'bg-blue-500 hover:bg-blue-600'
+            } text-white transition-colors duration-200`}
+          >
+            Use Default Questions
+          </button>
+        </div>
+
+        {/* Render CustomQuiz or DefaultQuiz based on selection */}
+        {selectedQuizType === 'custom' && <CustomQuiz setQuizType={setQuizType} />}
+        {selectedQuizType === 'default' && <DefaultQuiz setQuizType={setQuizType} quizType={quizType} />}
       </div>
     </div>
 

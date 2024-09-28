@@ -106,19 +106,19 @@ const Navbar = ({gameDuration, skipPenalty}: NavbarProps): React.JSX.Element => 
   };
 
   return (
-    <nav className="bg-blue-600 text-white px-4 py-3 flex items-center justify-between">
+    <nav className="bg-blue-600 text-white px-4 py-3 flex items-center relative">
       {/* Navbar Brand */}
-      <div className="flex items-center">
-        <h1 className="text-xl font-bold">Quiz App</h1>
+      <div className="flex items-center flex-shrink-0">
+        <h1 className="text-xl font-bold">1v1Quiz</h1>
       </div>
 
       {/* Navbar User Info */}
-      <div className="hidden md:flex items-center">
-        <p className="mr-6">Logged in as: {username}</p>
+      <div className="flex-1 flex items-center justify-center">
+        <p className="ml-40 pl-2.5">Logged in as: {username}</p>
       </div>
 
       {/* Navbar Search and Invitations */}
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center space-x-4 flex-shrink-0">
         {/* Search Form */}
         <form
           className="relative"

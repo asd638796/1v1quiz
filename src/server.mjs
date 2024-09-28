@@ -118,7 +118,7 @@ const authenticateJWT = (req, res, next) => {
 
 app.post('/api/save-questions', authenticateJWT, async (req, res) => {
   const { username, questions } = req.body;
-
+  console.log(username);
   try {
     // Start a transaction to ensure atomicity
     await pool.query('BEGIN');
