@@ -1,10 +1,11 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import React, { createContext, useContext, useState } from 'react';
 
 interface AuthContextType {
   username: string | null;
   login: (username: string) => void;
   logout: () => void;
+  quizType: 'custom' | 'default' | null;
+  setQuizType: (type: 'custom' | 'default' | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -12,7 +13,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: React.ReactNode }): React.JSX.Element => {
   
   const [username, setUsername] = useState<string | null>(null);
-  
+  const [quizType, setQuizType] = useState<'custom' | 'default' | null>('default');
 
   const login = (username: string) => {
     setUsername(username);
@@ -25,7 +26,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }): React
   };
 
   return (
-    <AuthContext.Provider value={{ username, login, logout }}>
+    <AuthContext.Provider value={{ username, login, logout, quizType, setQuizType }}>
       {children}
     </AuthContext.Provider>
   );

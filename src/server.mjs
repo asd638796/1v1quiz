@@ -84,8 +84,8 @@ app.post('/api/login', async (req, res) => {
       }
     }
 
-    const token = jwt.sign({ username: user.username }, JWT_SECRET, { expiresIn: '1h' });
-    res.cookie('token', token, { httpOnly: true, secure: false, sameSite: 'Strict' }); // Set HTTP-only cookie, secure: false for localhost
+    const token = jwt.sign({ username: user.username }, JWT_SECRET, { expiresIn: '3h' });
+    res.cookie('token', token, { httpOnly: true, secure: false, sameSite: 'Strict', maxAge: 4 * 60 * 60 * 1000 }); // Set HTTP-only cookie, secure: false for localhost
     res.status(200).json({ message: 'Login successful', username });
   
 
@@ -351,7 +351,7 @@ io.on('connection', (socket) => {
       toSocket.emit('invitation_accepted', { from });
 
       // Fetch questions directly from the database
-      const result = await pool.query('SELECT country, capital FROM questions WHERE username = $1', [username]);
+      const result = await pool.query('SELECT country, capital FROM questions WHERE username = $1', [ ]);
       const questions = result.rows;  
       const initialQuestion = questions[Math.floor(Math.random() * questions.length)];
 

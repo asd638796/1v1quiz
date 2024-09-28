@@ -27,11 +27,6 @@ const CustomQuiz = ({setQuizType}: CustomQuizProps): React.JSX.Element => {
 
   const { username } = useAuth();
 
-  // Helper function to clamp values (if needed)
-  const clamp = (value: number, min: number, max: number): number => {
-    return Math.max(min, Math.min(value, max));
-  };
-
   // Handle adding a new question (fills existing rows first)
   const handleAddQuestion = () => {
     setQuestions((prevQuestions) => {
@@ -103,7 +98,7 @@ const CustomQuiz = ({setQuizType}: CustomQuizProps): React.JSX.Element => {
   };
 
   return (
-    <div className="custom-quiz bg-white p-6 rounded-lg shadow-md mt-10">
+    <div className="custom-quiz bg-white p-6 rounded-lg  mt-10">
       <h2 className="text-2xl font-bold mb-6 text-center">Create Your Questions</h2>
 
       {/* Questions Container */}

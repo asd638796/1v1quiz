@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import CustomQuiz from './CustomQuiz';
 import DefaultQuiz from './DefaultQuiz';
 import { useNavigate } from 'react-router-dom';
@@ -8,14 +8,18 @@ import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 
 const Dashboard = (): React.JSX.Element => {
-  const [quizType, setQuizType] = useState<'custom' | 'default' | null>('default');
-  const [selectedQuizType, setSelectedQuizType] = useState<'custom' | 'default' | null>('default')
-  const [gameDuration, setGameDuration] = useState<number>(30); 
-  const [skipPenalty, setSkipPenalty] = useState<number>(2);
+  const [selectedQuizType, setSelectedQuizType] = useState<'custom' | 'default' | null>(null)
+  const [gameDuration, setGameDuration] = useState<string>('30'); 
+  const [skipPenalty, setSkipPenalty] = useState<string>('2');
 
-  const { username, logout } = useAuth();
+  const { username, logout, quizType, setQuizType } = useAuth();
   const { disconnect } = useSocket();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    setSelectedQuizType(quizType);
+  }, []);
+  
 
   const handleLogout = useCallback(async () => {
     if (username) {
@@ -32,11 +36,11 @@ const Dashboard = (): React.JSX.Element => {
     }
   }, [username, disconnect, logout, navigate]);
 
-
+  
   return (
     <div className="dashboard">
       
-      <Navbar gameDuration={gameDuration} skipPenalty={skipPenalty} />
+      <Navbar gameDuration={parseInt(gameDuration)} skipPenalty={parseInt(skipPenalty)} />
 
       <button
         onClick={handleLogout}
@@ -57,34 +61,31 @@ const Dashboard = (): React.JSX.Element => {
             <input
               id="gameDuration"
               name="gameDuration"
-              type="number"
-              min="15"
-              value={Number(gameDuration).toString()}
-              onChange={(e) => {
-                let value = e.target.value;
-          
-                // Remove any non-digit characters
-                value = value.replace(/\D/g, '');
-          
-                // Remove leading zeros unless the value is '0'
-                if (value.length > 1) {
-                  value = value.replace(/^0+/, '');
+              type="text" // Use text to allow partial inputs
+              maxLength={3} // Allow an extra character for user flexibility
+              value={gameDuration}
+              onChange={(e) => setGameDuration(e.target.value)}
+              onBlur={() => {
+                const max = 120;
+                const min = 15;
+                if (gameDuration === '') {
+                  setGameDuration(min.toString()); // Default to min if empty
+                  return;
                 }
-          
-                // If value is empty, set skipPenalty to 0
-                if (value === '') {
-                  setGameDuration(0);
-                } else {
-                  // Parse the value to an integer
-                  let numValue = parseInt(value, 10);
-          
-                  // Clamp the value between 0 and 30
-                  numValue = Math.max(0, Math.min(numValue, 120));
-          
-                  setGameDuration(numValue);
+
+                const parsedValue = parseInt(gameDuration, 10);
+
+                if (isNaN(parsedValue)) {
+                  setGameDuration(min.toString()); // Default to min if invalid
+                  return;
                 }
+
+                // Clamp the value between min and max
+                const clampedValue = Math.min(max, Math.max(min, parsedValue));
+                setGameDuration(clampedValue.toString());
               }}
               className="flex-grow mt-1 p-2 border border-gray-300 rounded"
+              placeholder={`15-120`}
             />
           </div>
 
@@ -96,33 +97,31 @@ const Dashboard = (): React.JSX.Element => {
             <input
               id="skipPenalty"
               name="skipPenalty"
-              type="number"
-              value={Number(skipPenalty).toString()}
-              onChange={(e) => {
-                let value = e.target.value;
-          
-                // Remove any non-digit characters
-                value = value.replace(/\D/g, '');
-          
-                // Remove leading zeros unless the value is '0'
-                if (value.length > 1) {
-                  value = value.replace(/^0+/, '');
+              type="text" // Use text to allow partial inputs
+              maxLength={2} // Allow an extra character for user flexibility
+              value={skipPenalty}
+              onChange={(e) => setSkipPenalty(e.target.value)}
+              onBlur={() => {
+                const max = 30;
+                const min = 0;
+                if (skipPenalty === '') {
+                  setSkipPenalty(min.toString()); // Default to min if empty
+                  return;
                 }
-          
-                // If value is empty, set skipPenalty to 0
-                if (value === '') {
-                  setSkipPenalty(0);
-                } else {
-                  // Parse the value to an integer
-                  let numValue = parseInt(value, 10);
-          
-                  // Clamp the value between 0 and 30
-                  numValue = Math.max(0, Math.min(numValue, 30));
-          
-                  setSkipPenalty(numValue);
+
+                const parsedValue = parseInt(skipPenalty, 10);
+
+                if (isNaN(parsedValue)) {
+                  setSkipPenalty(min.toString()); // Default to min if invalid
+                  return;
                 }
+
+                // Clamp the value between min and max
+                const clampedValue = Math.min(max, Math.max(min, parsedValue));
+                setSkipPenalty(clampedValue.toString());
               }}
               className="flex-grow mt-1 p-2 border border-gray-300 rounded"
+              placeholder={`0-30`}
             />
           </div>
 
