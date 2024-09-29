@@ -1,45 +1,40 @@
-import React, { useState } from 'react';
+import React from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import { useRecoilState } from 'recoil';
+import { questionsState, Question } from '../recoil/atom';
 
-interface Question {
-  country: string;
-  capital: string;
-}
 
 interface CustomQuizProps {
   setQuizType: (type: 'custom' | 'default') => void;
 }
 
+
+
 const CustomQuiz = ({setQuizType}: CustomQuizProps): React.JSX.Element => {
-  // Initialize with one row of 5 questions
-  const [questions, setQuestions] = useState<Question[][]>([
-    [
-      { country: '', capital: '' },
-      { country: '', capital: '' },
-      { country: '', capital: '' },
-      { country: '', capital: '' },
-      { country: '', capital: '' },
-    ],
-  ]);
 
+  const [questions, setQuestions] = useRecoilState(questionsState);
   
-
   const { username } = useAuth();
 
   // Handle adding a new question (fills existing rows first)
   const handleAddQuestion = () => {
-    setQuestions((prevQuestions) => {
+    setQuestions((prevQuestions: Question[][]) => {
       // Find the first row with less than 5 questions
       for (let i = 0; i < prevQuestions.length; i++) {
         if (prevQuestions[i].length < 5) {
+          // Create a new row with the added question
           const updatedRow = [...prevQuestions[i], { country: '', capital: '' }];
-          const updatedQuestions = [...prevQuestions];
-          updatedQuestions[i] = updatedRow;
+          // Create a new questions array with the updated row
+          const updatedQuestions = [
+            ...prevQuestions.slice(0, i),
+            updatedRow,
+            ...prevQuestions.slice(i + 1),
+          ];
           return updatedQuestions;
         }
       }
-      // If all existing rows are full, add a new row
+      // If all existing rows are full, add a new row with one question
       return [...prevQuestions, [{ country: '', capital: '' }]];
     });
   };
@@ -47,16 +42,25 @@ const CustomQuiz = ({setQuizType}: CustomQuizProps): React.JSX.Element => {
   // Handle deleting a question from a specific row and index
   const handleDeleteQuestion = (rowIndex: number, questionIndex: number) => {
     if (rowIndex === 0) return; // Prevent deleting from the first row
-
-    const newQuestions = [...questions];
-    newQuestions[rowIndex].splice(questionIndex, 1);
-
-    // If the row becomes empty after deletion, remove the row
-    if (newQuestions[rowIndex].length === 0) {
-      newQuestions.splice(rowIndex, 1);
-    }
-
-    setQuestions(newQuestions);
+  
+    setQuestions((prevQuestions: Question[][]) => {
+      // Clone the specific row
+      const updatedRow = [...prevQuestions[rowIndex]];
+      updatedRow.splice(questionIndex, 1); // Remove the question
+  
+      // Clone the entire questions array
+      const newQuestions = [...prevQuestions];
+  
+      if (updatedRow.length === 0) {
+        // Remove the entire row if empty
+        newQuestions.splice(rowIndex, 1);
+      } else {
+        // Update the specific row with the modified row
+        newQuestions[rowIndex] = updatedRow;
+      }
+  
+      return newQuestions;
+    });
   };
 
   // Handle input changes with leading zero prevention
@@ -66,11 +70,21 @@ const CustomQuiz = ({setQuizType}: CustomQuizProps): React.JSX.Element => {
     field: 'country' | 'capital',
     value: string
   ) => {
-    const newQuestions = [...questions];
-    newQuestions[rowIndex][questionIndex][field] = value;
-    setQuestions(newQuestions);
+    setQuestions((prevQuestions: Question[][]) => {
+      // Create a new array for questions
+      const newQuestions = prevQuestions.map((row, rIdx) =>
+        rIdx === rowIndex
+          ? row.map((question, qIdx) =>
+              qIdx === questionIndex
+                ? { ...question, [field]: value } // Create a new question object with the updated field
+                : question // Keep the existing question object
+            )
+          : row // Keep the existing row
+      );
+  
+      return newQuestions;
+    });
   };
-
   // Handle saving questions
   const handleSave = async () => {
     // Optional: Validate that all questions have both country and capital filled
@@ -84,7 +98,7 @@ const CustomQuiz = ({setQuizType}: CustomQuizProps): React.JSX.Element => {
     }
 
     try {
-      const flatQuestions = questions.flat(); // Flatten the 2D array
+      const flatQuestions: Question[] = questions.flat(); // Flatten the 2D array
       const response = await axios.post('/api/save-questions', {
         username,
         questions: flatQuestions,

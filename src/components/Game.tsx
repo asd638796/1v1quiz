@@ -149,7 +149,7 @@ const Game = (): React.JSX.Element => {
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center">
       {/* Game Container */}
-      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+      <div className="bg-white p-16 rounded-lg shadow-md w-full max-w-md">
         {/* Timer Section */}
         <div className="flex justify-between mb-6">
           <p className="text-gray-700 font-semibold">Your Time: {timers.myTime}s</p>

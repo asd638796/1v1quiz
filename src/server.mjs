@@ -351,7 +351,7 @@ io.on('connection', (socket) => {
       toSocket.emit('invitation_accepted', { from });
 
       // Fetch questions directly from the database
-      const result = await pool.query('SELECT country, capital FROM questions WHERE username = $1', [ ]);
+      const result = await pool.query('SELECT country, capital FROM questions WHERE username = $1', [from]);
       const questions = result.rows;  
       const initialQuestion = questions[Math.floor(Math.random() * questions.length)];
 

@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect} from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 
@@ -8,12 +8,6 @@ interface DefaultQuizProps {
   quizType: 'custom' | 'default' | null;
 }
 
-interface Question {
-    
-  country: string;
-  capital: string;
-
-  }
 
 const DefaultQuiz = ({ setQuizType, quizType }: DefaultQuizProps): React.JSX.Element => { 
       
