@@ -40,9 +40,25 @@ const Game = (): React.JSX.Element => {
   const [room, setRoom] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
+  const [isGameOver, setIsGameOver] = useState<boolean>(false);
+  const [countdown, setCountdown] = useState<number>(5);
+  const [gameOverMessage, setGameOverMessage] = useState<string>('');
 
   
-  
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+
+    if (isGameOver && countdown > 0) {
+      timer = setTimeout(() => {
+        setCountdown(countdown - 1);
+      }, 1000);
+    } else if (isGameOver && countdown === 0) {
+      navigate('/dashboard');
+    }
+
+    // Clean up the timer when the component unmounts or when countdown changes
+    return () => clearTimeout(timer);
+  }, [isGameOver, countdown, navigate]);
 
   const handleSocketConnect = async (socket:any) => {
     const query = new URLSearchParams(location.search);
@@ -88,8 +104,10 @@ const Game = (): React.JSX.Element => {
         });
     
         socket.on('game_over', ({ winner, loser }: GameOverData) => {
-          alert(`${winner} wins! ${loser} loses.`);
-          navigate('/dashboard');
+          setGameOverMessage(`${winner} wins! ${loser} loses.`);
+          setIsGameOver(true);
+          setCountdown(5); // Initialize countdown
+         
         });
 
 
@@ -148,6 +166,15 @@ const Game = (): React.JSX.Element => {
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center">
+      
+      {/* Game Over Notification */}
+      {isGameOver && (
+        <div className="absolute top-0 left-0 w-full bg-red-600 text-white text-center py-4">
+          <p className="text-xl font-semibold">{gameOverMessage}</p>
+          <p className="mt-2">Returning to dashboard in {countdown}...</p>
+        </div>
+      )}
+      
       {/* Game Container */}
       <div className="bg-white p-16 rounded-lg shadow-md w-full max-w-md">
         {/* Timer Section */}

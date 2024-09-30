@@ -365,7 +365,8 @@ io.on('connection', (socket) => {
         players: { from, to }, 
         question: initialQuestion,
         questions: questions,
-        settings
+        settings, 
+        skipCount: 0, // Initialize skip counter
       };
 
     
@@ -455,7 +456,11 @@ io.on('connection', (socket) => {
     const nextTurn = currentTurn === games[room].players.from ? games[room].players.to : games[room].players.from;
   
     // Pick a new random question from the stored list
-    const newQuestion = games[room].questions[Math.floor(Math.random() * games[room].questions.length)];
+
+    let newQuestion = '';
+    do {
+      newQuestion = games[room].questions[Math.floor(Math.random() * games[room].questions.length)];
+  } while (newQuestion == games[room].question);
   
     // Update the game state
     games[room].isPlayerTurn = nextTurn;
@@ -465,41 +470,55 @@ io.on('connection', (socket) => {
     io.to(room).emit('next_turn', { question: newQuestion, isPlayerTurn: nextTurn });
   });
 
-    socket.on('skip_turn', ({ room }) => {
-      if (!games[room]) {
-        return;
-      }
-      
-      const { players, timers, settings, isPlayerTurn } = games[room];  // Ensure that players and timers exist
-      const from = players.from;
-      const to = players.to;
-      const skipPenalty = settings.skipPenalty;
-      const currentTurn = isPlayerTurn;
-
-
-      if (currentTurn === from) {
-        timers[from] -= skipPenalty;
-        if (timers[from] < 0) timers[from] = 0;
-      } else {
-        timers[to] -= skipPenalty;
-        if (timers[to] < 0) timers[to] = 0;
-      }
-
-      io.to(room).emit('timer_update', {
-        timers: timers
-        
-      });
-      // Toggle the turn
+  socket.on('skip_turn', ({ room }) => {
+    if (!games[room]) {
+      return;
+    }
+    
+    const { players, timers, settings, isPlayerTurn, skipCount } = games[room];
+    const from = players.from;
+    const to = players.to;
+    const skipPenalty = settings.skipPenalty;
+    const currentTurn = isPlayerTurn;
+  
+    // Apply skip penalty
+    if (currentTurn === from) {
+      timers[from] = Math.max(timers[from] - skipPenalty, 0);
+    } else {
+      timers[to] = Math.max(timers[to] - skipPenalty, 0);
+    }
+  
+    // Update timers for all clients
+    io.to(room).emit('timer_update', { timers });
+  
+    // Increment skip count
+    games[room].skipCount += 1;
+  
+    // Check if skip count reaches 2
+    if (games[room].skipCount >= 2) {
+      // Generate a new question
+      let newQuestion;
+      do {
+        newQuestion = games[room].questions[Math.floor(Math.random() * games[room].questions.length)];
+      } while (newQuestion === games[room].question);
+  
+      games[room].question = newQuestion;
+      games[room].skipCount = 0; // Reset skip count
+  
+      // Emit the new question and toggle turn
       const nextTurn = currentTurn === from ? to : from;
-    
       games[room].isPlayerTurn = nextTurn;
-    
-
-      // Emit the updated game state to all clients in the room
+  
+      io.to(room).emit('next_turn', { question: newQuestion, isPlayerTurn: nextTurn });
+    } else {
+      // Toggle the turn without changing the question
+      const nextTurn = currentTurn === from ? to : from;
+      games[room].isPlayerTurn = nextTurn;
+  
       io.to(room).emit('next_turn', { question: games[room].question, isPlayerTurn: nextTurn });
-    
-      
+    }
   });
+  
 
   socket.on('game_over', ({ room, winner, loser }) => {
     io.to(room).emit('game_over', { winner, loser });

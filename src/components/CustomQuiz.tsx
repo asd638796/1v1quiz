@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useEffect, useState} from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { useRecoilState } from 'recoil';
@@ -9,13 +9,34 @@ interface CustomQuizProps {
   setQuizType: (type: 'custom' | 'default') => void;
 }
 
+interface Message {
+  text: string;
+  type: 'success' | 'error';
+}
 
 
 const CustomQuiz = ({setQuizType}: CustomQuizProps): React.JSX.Element => {
 
   const [questions, setQuestions] = useRecoilState(questionsState);
-  
   const { username } = useAuth();
+  const [message, setMessage] = useState<Message | null>(null);
+  
+
+
+
+  useEffect(() => {
+    let timerId: NodeJS.Timeout;
+
+    if (message) {
+      timerId = setTimeout(() => {
+        setMessage(null);
+      }, 7000); // Dismiss message after 5 seconds
+    }
+
+    return () => {
+      if (timerId) clearTimeout(timerId);
+    };
+  }, [message]);
 
   // Handle adding a new question (fills existing rows first)
   const handleAddQuestion = () => {
@@ -91,7 +112,7 @@ const CustomQuiz = ({setQuizType}: CustomQuizProps): React.JSX.Element => {
     for (const row of questions) {
       for (const q of row) {
         if (!q.country.trim() || !q.capital.trim()) {
-          alert('Please fill in all question and answer fields.');
+          setMessage({ text: 'Please fill in all question and answer fields.', type: 'error' });
           return;
         }
       }
@@ -103,27 +124,27 @@ const CustomQuiz = ({setQuizType}: CustomQuizProps): React.JSX.Element => {
         username,
         questions: flatQuestions,
       });
-      alert(response.data.message);
+      setMessage({ text: response.data.message, type: 'success' });
       setQuizType('custom');
     } catch (error) {
       console.error('Error saving questions:', error);
-      alert('Failed to save questions. Please try again.');
+      setMessage({ text: 'Failed to save questions. Please try again.', type: 'error' });
     }
   };
 
   return (
-    <div className="custom-quiz bg-white p-6 rounded-lg  mt-10">
+    <div className="custom-quiz bg-white p-6 rounded-lg mt-10">
       <h2 className="text-2xl font-bold mb-6 text-center">Create Your Questions</h2>
 
       {/* Questions Container */}
-      <div className="space-y-6">
+      <div className="flex flex-wrap -mx-3">
         {questions.map((row, rowIndex) => (
-          <div key={rowIndex} className="flex space-x-6">
-            {row.map((question, questionIndex) => (
-              <div
-                key={questionIndex}
-                className="relative w-60 h-60 bg-gray-50 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 group"
-              >
+          row.map((question, questionIndex) => (
+            <div
+              key={`${rowIndex}-${questionIndex}`}
+              className="px-3 mb-6 w-full sm:w-1/2 md:w-1/3 lg:w-1/4"
+            >
+              <div className="relative bg-gray-50 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 group h-full">
                 {/* Delete Button (only for rows beyond the first) */}
                 {rowIndex > 0 && (
                   <button
@@ -175,8 +196,8 @@ const CustomQuiz = ({setQuizType}: CustomQuizProps): React.JSX.Element => {
                   />
                 </div>
               </div>
-            ))}
-          </div>
+            </div>
+          ))
         ))}
       </div>
 
@@ -194,6 +215,26 @@ const CustomQuiz = ({setQuizType}: CustomQuizProps): React.JSX.Element => {
         >
           Save
         </button>
+      </div>
+
+      {/* Message Display */}
+      <div className="flex flex-col items-center space-y-2 mt-6">
+        {/* Reserved space to prevent layout shifts */}
+        <div className="h-6 w-full">
+          {message && (
+            <div
+              role="alert"
+              aria-live="assertive"
+              className={`w-full text-center text-sm font-medium animate-fadeInOut ${
+                message.type === 'success'
+                  ? 'text-green-500'
+                  : 'text-red-500'
+              }`}
+            >
+              {message.text}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

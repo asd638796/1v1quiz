@@ -6,14 +6,16 @@ import Navbar from './NavBar';
 import { useSocket } from '../context/SocketContext';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
-import { useRecoilState } from 'recoil';
-import { quizTypeState } from '../recoil/atom';
+import { useRecoilState, useResetRecoilState } from 'recoil';
+import { quizTypeState, questionsState } from '../recoil/atom';
 
 const Dashboard = (): React.JSX.Element => {
   const [selectedQuizType, setSelectedQuizType] = useState<'custom' | 'default' | null>(null)
   const [gameDuration, setGameDuration] = useState<string>('30'); 
   const [skipPenalty, setSkipPenalty] = useState<string>('2');
   const [quizType, setQuizType] = useRecoilState(quizTypeState);
+  const resetQuizType = useResetRecoilState(quizTypeState);
+  const resetquestionState = useResetRecoilState(questionsState);
 
   const { username, logout  } = useAuth();
   const { disconnect } = useSocket();
@@ -31,6 +33,8 @@ const Dashboard = (): React.JSX.Element => {
         disconnect();
         logout();
         navigate('/');
+        resetQuizType();
+        resetquestionState();
       } catch (error) {
         console.error('Error logging out:', error);
       }
