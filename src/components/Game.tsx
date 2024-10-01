@@ -44,7 +44,6 @@ const Game = (): React.JSX.Element => {
   const [countdown, setCountdown] = useState<number>(5);
   const [gameOverMessage, setGameOverMessage] = useState<string>('');
 
-  
   useEffect(() => {
     let timer: NodeJS.Timeout;
 
@@ -60,7 +59,7 @@ const Game = (): React.JSX.Element => {
     return () => clearTimeout(timer);
   }, [isGameOver, countdown, navigate]);
 
-  const handleSocketConnect = async (socket:any) => {
+  const handleSocketConnect = async (socket: any) => {
     const query = new URLSearchParams(location.search);
     const roomFromUrl = query.get('room');
 
@@ -70,9 +69,7 @@ const Game = (): React.JSX.Element => {
       try {
         const response = await axios.get('/api/game-state', { params: { room: roomFromUrl } });
         const { timers, isPlayerTurn, question, players } = response.data;
-        
-        
-        
+
         let opponentUsername: string;
 
         if (username === players.from) {
@@ -88,28 +85,32 @@ const Game = (): React.JSX.Element => {
         setOpponent(opponentUsername);
 
         socket.emit('join_room', { room: roomFromUrl, username });
-        
 
         socket.on('timer_update', ({ timers }: TimerUpdateData) => {
-          if(username !== null){
+          if (username !== null) {
             const myTime = timers[username];
             const opponentTime = timers[opponentUsername];
             setTimers({ myTime: myTime, opponentTime: opponentTime });
           }
         });
-    
+
         socket.on('next_turn', ({ question, isPlayerTurn }: NextTurnData) => {
           setIsPlayerTurn(isPlayerTurn);
           setCurrentQuestion(question);
         });
-    
+
         socket.on('game_over', ({ winner, loser }: GameOverData) => {
           setGameOverMessage(`${winner} wins! ${loser} loses.`);
           setIsGameOver(true);
           setCountdown(5); // Initialize countdown
-         
         });
 
+        // **New: Handle User Leaving**
+        socket.on('user_left', () => {
+          setGameOverMessage('Other user left the game. You win!');
+          setIsGameOver(true);
+          setCountdown(5);
+        });
 
       } catch (error) {
         console.error('Failed to fetch game state:', error);
@@ -125,36 +126,32 @@ const Game = (): React.JSX.Element => {
     if (!socket) {
       setLoading(true);
       return;
-    }else{
+    } else {
       setLoading(false);
       handleSocketConnect(socket);
-      
     }
-  
+
     if (!loading) {
-      
-  
       return () => {
         socket.off('timer_update');
         socket.off('next_turn');
         socket.off('game_over');
+        socket.off('user_left'); // **Ensure to remove the new event listener**
         socket.off('skip_turn');
       };
     }
   }, [socket, navigate, username]);
-  
 
   if (loading) {
-    return <div>Loading...</div>;  // Show a loading state while the socket is connecting
+    return <div>Loading...</div>; // Show a loading state while the socket is connecting
   }
 
   const handleAnswer = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (isPlayerTurn === username && answer.trim().toLowerCase() === currentQuestion?.capital.toLowerCase()) {
-      
       setAnswer('');
-      socket?.emit('next_turn', {room});
+      socket?.emit('next_turn', { room });
     }
   };
 
@@ -165,7 +162,7 @@ const Game = (): React.JSX.Element => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center">
+    <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center relative">
       
       {/* Game Over Notification */}
       {isGameOver && (
@@ -173,6 +170,19 @@ const Game = (): React.JSX.Element => {
           <p className="text-xl font-semibold">{gameOverMessage}</p>
           <p className="mt-2">Returning to dashboard in {countdown}...</p>
         </div>
+      )}
+
+      {/* Leave Game Button */}
+      {!isGameOver && (
+        <button
+          onClick={() => {
+            socket?.emit('leave_game', { room, username });
+            navigate('/dashboard');
+          }}
+          className="absolute top-4 left-4 bg-red-500 text-white px-4 py-2 rounded-md"
+        >
+          Leave Game
+        </button>
       )}
       
       {/* Game Container */}
@@ -182,7 +192,7 @@ const Game = (): React.JSX.Element => {
           <p className="text-gray-700 font-semibold">Your Time: {timers.myTime}s</p>
           <p className="text-gray-700 font-semibold">{opponent}'s Time: {timers.opponentTime}s</p>
         </div>
-  
+
         {/* Game Body */}
         <div
           className={`${
@@ -226,7 +236,6 @@ const Game = (): React.JSX.Element => {
       </div>
     </div>
   );
-  
 };
 
 export default Game;

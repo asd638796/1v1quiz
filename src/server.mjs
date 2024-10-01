@@ -292,6 +292,7 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     
+    const room = findRoomByUsername(username);
     
     
     if (activeUsers[username]) {
@@ -302,8 +303,13 @@ io.on('connection', (socket) => {
         disconnectTimeouts[username] = setTimeout(async () => {
 
           
+          
           try {
             // Perform cleanup logic
+
+            socket.to(room).emit('user_left', { username });
+            console.log(room);
+
             await pool.query('DELETE FROM users WHERE username = $1', [username]);
             await pool.query('DELETE FROM questions WHERE username = $1', [username]);
 
@@ -318,7 +324,7 @@ io.on('connection', (socket) => {
           } catch (error) {
             console.error('Error during disconnect cleanup:', error);
           }
-        }, 10000); // 10-second timeout
+        }, 1000); // 10-second timeout
       }
     }
   });
@@ -330,6 +336,12 @@ io.on('connection', (socket) => {
     if (recipientSocket) {
       recipientSocket.emit('receive_invitation', { from, settings });
     }
+  });
+
+  socket.on('leave_game', ({ room, username }) => {
+    socket.leave(room);
+    socket.to(room).emit('user_left', { username });
+    // Additional cleanup if necessary
   });
 
   socket.on('accept_invitation', async ({ from, to, settings }) => {
@@ -528,7 +540,13 @@ io.on('connection', (socket) => {
 
 });
 
-
+const findRoomByUsername = (username) => {
+  return Object.keys(games).find(
+    (room) =>
+      games[room].players.from === username ||
+      games[room].players.to === username
+  );
+};
 
 server.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
